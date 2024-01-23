@@ -1,24 +1,70 @@
-import logo from './logo.svg';
-import './App.css';
+import React, { useState } from 'react';
+import { Stage, Layer, Line } from 'react-konva';
+
 
 function App() {
+  const [drawing, setDrawing] = useState(false);
+  const [lines, setLines] = useState([]);
+  const [color, setColor] = useState('#000');
+  const [lineWidth, setLineWidth] = useState(2);
+
+  const handleMouseDown = () => {
+    setDrawing(true);
+    setLines([...lines, { color, points: [] }]);
+  };
+
+  const handleMouseUp = () => {
+    setDrawing(false);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!drawing) {
+      return;
+    }
+    const stage = e.target.getStage();
+    const point = stage.getPointerPosition();
+    let lastLine = lines[lines.length - 1];
+    lastLine.points = lastLine.points.concat([point.x, point.y]);
+    setLines([...lines.slice(0, lines.length - 1), lastLine]);
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
+      <div>
+        <div>
+          <label>Color:</label>
+          <input
+              type="color"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+          />
+          <label>Line Width:</label>
+          <input
+              type="number"
+              value={lineWidth}
+              onChange={(e) => setLineWidth(e.target.value)}
+          />
+        </div>
+        <Stage
+            width={window.innerWidth}
+            height={window.innerHeight - 50}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            onMouseMove={handleMouseMove}
         >
-          Learn React
-        </a>
-      </header>
-    </div>
+          <Layer>
+            {lines.map((line, i) => (
+                <Line
+                    key={i}
+                    points={line.points}
+                    stroke={line.color}
+                    strokeWidth={lineWidth}
+                    tension={0.5}
+                    lineCap="round"
+                />
+            ))}
+          </Layer>
+        </Stage>
+      </div>
   );
 }
 
