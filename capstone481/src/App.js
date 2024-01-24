@@ -16,10 +16,20 @@ function App() {
   const [lineWidth, setLineWidth] = useState(2);
   const [currentShape, setCurrentShape] = useState(null);
   const [shapes, setShapes] = useState([]);
+  const [isEraserActive, setIsEraserActive] = useState(false);
+  const [nextId, setNextId] = useState(0);
 
   const handleMouseDown = (e) => {
     const stage = e.target.getStage();
     const point = stage.getPointerPosition();
+
+    if (isEraserActive) {
+      if (e.target !== stage) {
+        const shapeId = e.target.id();
+        setShapes(shapes.filter(shape => shape.id !== shapeId));
+      }
+      return;
+    }
 
     if (currentShape) {
       // Common properties for all shapes
@@ -42,11 +52,12 @@ function App() {
     if (drawing) {
       setDrawing(false);
       if (currentShape) {
-        // Finalize the shape (circle)
-        setShapes([...shapes, currentShape]);
+        setShapes([...shapes, { ...currentShape, id: nextId }]);
+        setNextId(nextId + 1);
       }
     }
   };
+
   const handleMouseMove = (e) => {
     if (!drawing) return;
 
@@ -74,6 +85,14 @@ function App() {
   const clearAllDrawings = () => {
     setShapes([]);
     setLines([]);
+    setCurrentShape(null);
+  };
+  const toggleEraser = () => {
+    setIsEraserActive(!isEraserActive);
+    // Optionally, reset currentShape when eraser is activated
+    if (isEraserActive) {
+      setCurrentShape(null);
+    }
   };
 
   return (
@@ -100,6 +119,7 @@ function App() {
           <button onClick={() => setCurrentShape({ type: 'ellipse' })}>Ellipse</button>
           <button onClick={() => setCurrentShape({ type: 'line' })}>Line</button>
           <button onClick={() => setCurrentShape(null)}>Free Draw</button> {/* Button to draw lines freely */}
+          <button onClick={toggleEraser}>{isEraserActive ? 'Disable Eraser' : 'Enable Eraser'}</button>
           <button onClick={clearAllDrawings}>Clear</button>
 
         </div>
@@ -114,21 +134,21 @@ function App() {
             {/* Render existing shapes */}
             {shapes.map((shape, i) => {
               if (shape.type === 'circle') {
-                return <CircleShape key={i} {...shape} />;
+                return <CircleShape key={i} id={shape.id} {...shape} />;
               } else if (shape.type === 'rectangle') {
-                return <Rectangle key={i} {...shape} />;
+                return <Rectangle key={i} id={shape.id} {...shape} />;
               } else if (shape.type === 'triangle') {
-                return <Triangle key={i} {...shape} />;
+                return <Triangle key={i} id={shape.id} {...shape} />;
               } else if (shape.type === 'square') {
-                return <Square key={i} {...shape} />;
+                return <Square key={i} id={shape.id} {...shape} />;
               } else if (shape.type === 'star') {
-                return <StarShape key={i} {...shape} />;
+                return <StarShape key={i} id={shape.id} {...shape} />;
               } else if (shape.type === 'polygon') {
-                return <Polygon key={i} {...shape} />;
+                return <Polygon key={i} id={shape.id} {...shape} />;
               } else if (shape.type === 'ellipse') {
-                return <EllipseShape key={i} {...shape} />;
+                return <EllipseShape key={i} id={shape.id} {...shape} />;
               } else if (shape.type === 'line') {
-                return <LineShape key={i} {...shape} />;
+                return <LineShape key={i} id={shape.id} {...shape} />;
               }
             })}
 
@@ -167,6 +187,19 @@ function App() {
                     points={line.points}
                     stroke={line.color}
                     strokeWidth={lineWidth}
+                    tension={0.5}
+                    lineCap="round"
+                />
+            ))}
+            {lines.map((line, i) => (
+                <Line
+                    key={i}
+                    points={line.points}
+                    stroke={isEraserActive ? 'white' : line.color}
+                    strokeWidth={lineWidth}
+                    globalCompositeOperation={
+                      isEraserActive ? 'destination-out' : 'source-over'
+                    }
                     tension={0.5}
                     lineCap="round"
                 />
