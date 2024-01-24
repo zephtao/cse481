@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { Stage, Layer, Line } from 'react-konva';
-import Rectangle from './Rectangle'; // Import the Rectangle component
+import Rectangle from './Rectangle';
 import CircleShape from './CircleShape';
-import Triangle from "./Triangle"; // Import the Circle component
+import Square from './Square';
+import StarShape from './StarShape';
+import Polygon from './Polygon';
+import EllipseShape from './EllipseShape';
+import LineShape from './LineShape';
+import Triangle from "./Triangle";
 
 function App() {
   const [drawing, setDrawing] = useState(false);
@@ -17,25 +22,17 @@ function App() {
     const point = stage.getPointerPosition();
 
     if (currentShape) {
-      // Common properties for both shapes
+      // Common properties for all shapes
       const shapeProperties = {
         start: point,
         end: point,
         color: color,
         strokeWidth: lineWidth
       };
-
-      // Set the type property based on the currentShape type
-      if (currentShape.type === 'circle') {
-        setCurrentShape({ type: 'circle', ...shapeProperties });
-      } else if (currentShape.type === 'rectangle') {
-        setCurrentShape({ type: 'rectangle', ...shapeProperties });
-      } else if (currentShape.type === 'triangle') {
-      setCurrentShape({ type: 'triangle', ...shapeProperties });
-    }
-    setDrawing(true);
+      setCurrentShape({ ...currentShape, ...shapeProperties });
+      setDrawing(true);
     } else {
-      // Start drawing a line
+      // Start drawing a freehand line
       setLines([...lines, { color, points: [point.x, point.y] }]);
       setDrawing(true);
     }
@@ -47,43 +44,37 @@ function App() {
       if (currentShape) {
         // Finalize the shape (circle)
         setShapes([...shapes, currentShape]);
-        setCurrentShape(null);
       }
     }
   };
-
   const handleMouseMove = (e) => {
     if (!drawing) return;
 
     const stage = e.target.getStage();
     const point = stage.getPointerPosition();
 
+    // Clamp the point to be within the stage dimensions
+    const clampedPoint = {
+      x: Math.min(Math.max(point.x, 0), stage.width()),
+      y: Math.min(Math.max(point.y, 0), stage.height()),
+    };
+
     if (currentShape) {
-      if (currentShape.type === 'circle') {
-        // Update the end point of the circle to adjust the radius
-        setCurrentShape(prevShape => ({
-          ...prevShape,
-          end: point
-        }));
-      } else if (currentShape.type === 'rectangle') {
-        setCurrentShape(prevShape => ({
-          ...prevShape,
-          end: point
-        }));
-      } else if (currentShape.type === 'triangle') {
-        setCurrentShape(prevShape => ({
-          ...prevShape,
-          end: point
-        }));
-      }
+      setCurrentShape(prevShape => ({
+        ...prevShape,
+        end: clampedPoint
+      }));
     } else {
       // Update the last line's points for freehand drawing
       let lastLine = lines[lines.length - 1];
-      lastLine.points = lastLine.points.concat([point.x, point.y]);
+      lastLine.points = lastLine.points.concat([clampedPoint.x, clampedPoint.y]);
       setLines([...lines.slice(0, lines.length - 1), lastLine]);
     }
   };
-
+  const clearAllDrawings = () => {
+    setShapes([]);
+    setLines([]);
+  };
 
   return (
       <div>
@@ -103,6 +94,14 @@ function App() {
           <button onClick={() => setCurrentShape({ type: 'circle' })}>Circle</button>
           <button onClick={() => setCurrentShape({ type: 'rectangle' })}>Rectangle</button>
           <button onClick={() => setCurrentShape({ type: 'triangle' })}>Triangle</button>
+          <button onClick={() => setCurrentShape({ type: 'square' })}>Square</button>
+          <button onClick={() => setCurrentShape({ type: 'star' })}>Star</button>
+          <button onClick={() => setCurrentShape({ type: 'polygon' })}>Polygon</button>
+          <button onClick={() => setCurrentShape({ type: 'ellipse' })}>Ellipse</button>
+          <button onClick={() => setCurrentShape({ type: 'line' })}>Line</button>
+          <button onClick={() => setCurrentShape(null)}>Free Draw</button> {/* Button to draw lines freely */}
+          <button onClick={clearAllDrawings}>Clear</button>
+
         </div>
         <Stage
             width={window.innerWidth}
@@ -120,6 +119,16 @@ function App() {
                 return <Rectangle key={i} {...shape} />;
               } else if (shape.type === 'triangle') {
                 return <Triangle key={i} {...shape} />;
+              } else if (shape.type === 'square') {
+                return <Square key={i} {...shape} />;
+              } else if (shape.type === 'star') {
+                return <StarShape key={i} {...shape} />;
+              } else if (shape.type === 'polygon') {
+                return <Polygon key={i} {...shape} />;
+              } else if (shape.type === 'ellipse') {
+                return <EllipseShape key={i} {...shape} />;
+              } else if (shape.type === 'line') {
+                return <LineShape key={i} {...shape} />;
               }
             })}
 
@@ -127,15 +136,28 @@ function App() {
             {currentShape && currentShape.type === 'circle' && (
                 <CircleShape {...currentShape} />
             )}
-
             {/* Render the current shape being drawn */}
             {currentShape && currentShape.type === 'rectangle' && (
                 <Rectangle {...currentShape} />
             )}
-
             {/* Render the current shape being drawn */}
             {currentShape && currentShape.type === 'triangle' && (
                 <Triangle {...currentShape} />
+            )}
+            {currentShape && currentShape.type === 'square' && (
+                <Square {...currentShape} />
+            )}
+            {currentShape && currentShape.type === 'star' && (
+                <StarShape {...currentShape} />
+            )}
+            {currentShape && currentShape.type === 'polygon' && (
+                <Polygon {...currentShape} />
+            )}
+            {currentShape && currentShape.type === 'ellipse' && (
+                <EllipseShape {...currentShape} />
+            )}
+            {currentShape && currentShape.type === 'line' && (
+                <LineShape {...currentShape} />
             )}
 
             {/* Render lines as before */}
