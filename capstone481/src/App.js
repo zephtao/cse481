@@ -10,6 +10,8 @@ import LineShape from './LineShape';
 import Triangle from "./Triangle";
 
 function App() {
+  document.body.style = 'background: white;';  // control background color of the webpage
+
   const [drawing, setDrawing] = useState(false);
   const [lines, setLines] = useState([]);
   const [color, setColor] = useState('#000');
