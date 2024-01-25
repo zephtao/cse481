@@ -112,6 +112,7 @@ function App() {
           />
           <label>Line Width:</label>
           <input
+              className="normal-input"
               type="number"
               value={lineWidth}
               onChange={(e) => setLineWidth(e.target.value)}
