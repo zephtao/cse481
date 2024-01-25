@@ -100,6 +100,10 @@ function App() {
   return (
       <div>
         <div>
+          <h1>Welcome To Our Coloring Robot Interface!</h1>
+
+          <p>Click on the shape you want, then drag anywhere on the page. Or, select "Free Draw" and use your cursor to draw anything!</p>
+
           <label>Color:</label>
           <input
               type="color"
@@ -112,17 +116,17 @@ function App() {
               value={lineWidth}
               onChange={(e) => setLineWidth(e.target.value)}
           />
-          <button onClick={() => setCurrentShape({ type: 'circle' })}>Circle</button>
-          <button onClick={() => setCurrentShape({ type: 'rectangle' })}>Rectangle</button>
-          <button onClick={() => setCurrentShape({ type: 'triangle' })}>Triangle</button>
-          <button onClick={() => setCurrentShape({ type: 'square' })}>Square</button>
-          <button onClick={() => setCurrentShape({ type: 'star' })}>Star</button>
-          <button onClick={() => setCurrentShape({ type: 'polygon' })}>Polygon</button>
-          <button onClick={() => setCurrentShape({ type: 'ellipse' })}>Ellipse</button>
-          <button onClick={() => setCurrentShape({ type: 'line' })}>Line</button>
-          <button onClick={() => setCurrentShape(null)}>Free Draw</button> {/* Button to draw lines freely */}
-          <button onClick={toggleEraser}>{isEraserActive ? 'Disable Eraser' : 'Enable Eraser'}</button>
-          <button onClick={clearAllDrawings}>Clear</button>
+          <button className="normal-button" onClick={() => setCurrentShape({ type: 'circle' })}>Circle</button>
+          <button className="normal-button" onClick={() => setCurrentShape({ type: 'rectangle' })}>Rectangle</button>
+          <button className="normal-button" onClick={() => setCurrentShape({ type: 'triangle' })}>Triangle</button>
+          <button className="normal-button" onClick={() => setCurrentShape({ type: 'square' })}>Square</button>
+          <button className="normal-button" onClick={() => setCurrentShape({ type: 'star' })}>Star</button>
+          <button className="normal-button" onClick={() => setCurrentShape({ type: 'polygon' })}>Polygon</button>
+          <button className="normal-button" onClick={() => setCurrentShape({ type: 'ellipse' })}>Ellipse</button>
+          <button className="normal-button" onClick={() => setCurrentShape({ type: 'line' })}>Line</button>
+          <button className="normal-button" onClick={() => setCurrentShape(null)}>Free Draw</button> {/* Button to draw lines freely */}
+          <button className="normal-button" onClick={toggleEraser}>{isEraserActive ? 'Disable Eraser' : 'Enable Eraser'}</button>
+          <button className="normal-button" onClick={clearAllDrawings}>Clear</button>
 
         </div>
         <Stage

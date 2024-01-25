@@ -12,3 +12,21 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
   monospace;
 }
+
+h1 {
+  color: #733076;
+}
+
+.normal-button {
+  border: 1.5px solid black;
+  background-color: transparent;
+  padding: 8px 12px;
+  color: black;
+  cursor: pointer;
+  margin-right: 5px;
+  border-radius: 8px;
+}
+
+* {
+  margin: 10px;
+}
