@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import { Stage, Layer, Line } from 'react-konva';
 import Rectangle from './Rectangle';
 import CircleShape from './CircleShape';
@@ -8,6 +8,24 @@ import Polygon from './Polygon';
 import EllipseShape from './EllipseShape';
 import LineShape from './LineShape';
 import Triangle from "./Triangle";
+
+import { 
+    RosConnection, 
+    ImageViewer, 
+    Subscriber, 
+    TopicListProvider, 
+    useMsg, 
+    useTopicList, 
+    Publisher, 
+    Param, 
+    useParam, 
+    ParamListProvider, 
+    useParamList, 
+    ServiceListProvider, 
+    useServiceList, 
+    ServiceCaller, 
+    ServiceServer
+} from "rosreact";
 
 function App() {
   document.body.style = 'background: white;';  // control background color of the webpage
@@ -20,6 +38,30 @@ function App() {
   const [shapes, setShapes] = useState([]);
   const [isEraserActive, setIsEraserActive] = useState(false);
   const [nextId, setNextId] = useState(0);
+
+  // ROSREACT START
+  const [trigger, setTrigger] = useState(false);
+  const [delParam, setDelParam] = useState(false);
+  const [message, setMessage] = useState({data: 0});
+
+  useEffect(() => {
+      setTimeout(() => {
+          setTrigger(!trigger);
+      }, 3000);
+  }, [trigger])
+
+  useEffect(() => {
+      setTimeout(() => {
+          setMessage({data: 4});
+      }, 3000);
+  }, [])
+
+  useEffect(() => {
+      setTimeout(() => {
+          setDelParam(true);
+      }, 10000);
+  }, [])
+  // ROSREACT END
 
   const handleMouseDown = (e) => {
     const stage = e.target.getStage();
@@ -99,6 +141,79 @@ function App() {
 
   return (
       <div>
+        {/* All ROS components are wrapped into a RosConnection */}
+        <RosConnection url={"ws://slinky.hcrlab.cs.washington.edu:9090"} autoConnect>
+            <Subscriber
+                topic="/number"
+                messageType="std_msgs/Float32"
+            >
+                <MsgView/>
+            </Subscriber>
+            
+            <Param 
+                name="/react/param"
+                setValue={1}
+                get={trigger}
+                delete={delParam}
+                deleteCallback={(resp) => {console.log(resp)}}
+                setCallback={(resp) => {console.log(resp)}}
+            >
+                <ParamView/>
+            </Param>
+            
+            <Publisher 
+                autoRepeat 
+                topic="/react/pub/repeat"
+                throttleRate={10.0} 
+                message={{data: 2}} 
+                messageType="std_msgs/Float32"
+            />
+            
+            <Publisher 
+                topic="/react/pub/norepeat"
+                throttleRate={10.0} 
+                message={message} 
+                messageType="std_msgs/Float32"
+                latch={true}
+            />
+
+            <ServiceServer 
+                name="/react/service" 
+                serviceType="std_srvs/SetBool" 
+                callback={serviceServerCallback}
+            />
+
+            <ServiceCaller 
+                name="/setbool" 
+                serviceType="std_srvs/SetBool" 
+                request={{data: true}} 
+                trigger={trigger}
+                callback={(resp) => {console.log(resp)}} 
+                failedCallback={(error) => {console.log(error)}}
+            />
+            
+            <TopicListProvider
+                trigger={trigger} 
+                failedCallback={(e) => {console.log(e)}}
+            >
+                <TopicListView/>
+            </TopicListProvider>
+            
+            <ServiceListProvider
+                trigger={trigger}
+                failedCallback={(e) => {console.log(e)}}
+            >
+                <ServiceListView/>
+            </ServiceListProvider>
+            
+            <ParamListProvider
+                trigger={trigger} 
+                failedCallback={(e) => {console.log(e)}}
+            >
+                <ParamListView/>
+            </ParamListProvider>
+        
+        </RosConnection>
         <div>
           <h1>Welcome To Our Coloring Robot Interface!</h1>
 
@@ -216,5 +331,55 @@ function App() {
       </div>
   );
 }
+
+// ROSREACT START
+const serviceServerCallback = (request, response) => {
+  if (request.data === true) {
+      response.success = true;
+      response.message = "Passed true value";
+  } else {
+      response.success = false;
+      response.message = "Passed false value";
+  }
+}
+
+const ParamView = () => {
+  const param = useParam();
+  return <p>{`${param}`}</p>
+}
+
+
+const MsgView = () => {
+  const msg = useMsg();
+  return <p> {`${msg.distance}`} </p>
+}
+
+
+const TopicListView = () => {
+  const topicList = useTopicList();
+  return ( 
+      <Fragment>
+      <p>{`${topicList.topics}`}</p>
+      <p>{`${topicList.types}`}</p>
+      </Fragment>
+  );
+}
+
+
+const ServiceListView = () => {
+  const list = useServiceList();
+  return (
+      <p>{`${list}`}</p>
+  );
+}
+
+
+const ParamListView = () => {
+  const list = useParamList();
+  return ( 
+      <p>{`${list}`}</p>
+  );
+}
+// ROSREACT END
 
 export default App;
