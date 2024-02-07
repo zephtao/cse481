@@ -11,7 +11,8 @@
     "react-dom": "^18.2.0",
     "react-konva": "^18.2.10",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "roslib": "github:hello-vinitha/roslibjs#ros2actionclient"
   },
   "scripts": {
     "start": "react-scripts start",

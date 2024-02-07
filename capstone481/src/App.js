@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import { Stage, Layer, Line } from 'react-konva';
 import Rectangle from './Rectangle';
 import CircleShape from './CircleShape';
@@ -8,6 +8,8 @@ import Polygon from './Polygon';
 import EllipseShape from './EllipseShape';
 import LineShape from './LineShape';
 import Triangle from "./Triangle";
+import ROSLIB from "roslib";
+
 
 function App() {
   document.body.style = 'background: white;';  // control background color of the webpage
@@ -20,6 +22,23 @@ function App() {
   const [shapes, setShapes] = useState([]);
   const [isEraserActive, setIsEraserActive] = useState(false);
   const [nextId, setNextId] = useState(0);
+  const [isConnected, setIsConnected] = useState(false);
+
+  const ros = new ROSLIB.Ros({
+    url : "ws://slinky.hcrlab.cs.washington.edu:9090"
+  });
+
+  let trajectoryClient = null;
+
+  ros.on('connection', () => {
+    setIsConnected(true);
+
+    trajectoryClient = new ROSLIB.ActionHandle({
+      ros: ros,
+      name: '/stretch_controller/follow_joint_trajectory',
+      actionType: 'control_msgs/action/FollowJointTrajectory'
+    });
+  });
 
   const handleMouseDown = (e) => {
     const stage = e.target.getStage();
@@ -97,9 +116,45 @@ function App() {
     }
   };
 
+  const moveLift = () => {
+    let newGoal = new ROSLIB.ActionGoal({
+      trajectory: {
+        header: {
+          stamp: {
+            secs: 0,
+            nsecs: 0
+          }
+        },
+        joint_names: ['joint_lift'],
+        points: [
+          {
+            positions: [0.3],
+            time_from_start: {
+              secs: 1,
+              nsecs: 0
+            }
+          }
+        ]
+      }
+    });
+
+    trajectoryClient.createClient(newGoal);
+  };
+
+  if (!isConnected) {
+    return (<div>Loading...</div>)
+  };
+
+  // cmd_vel topic to move base
+  // follow joint trajectory action server
+
   return (
       <div>
+        <button onClick={() => moveLift()}>Move lift</button>
+        <p>Is connected:</p>
+        {isConnected}
         <div>
+
           <h1>Welcome To Our Coloring Robot Interface!</h1>
 
           <p>Click on the shape you want, then drag anywhere on the page. Or, select "Free Draw" and use your cursor to draw anything!</p>
@@ -216,5 +271,6 @@ function App() {
       </div>
   );
 }
+
 
 export default App;
