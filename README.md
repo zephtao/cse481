@@ -9,5 +9,4 @@ To launch the driver:\
 To start the web socket on the robot, use this command:\
 `ros2 launch rosbridge_server rosbridge_websocket_launch.xml`
 
-You can add more to joint_names by looking at the joint names in JOINT_LIMITS:
-https://github.com/hello-robot/stretch_web_teleop/blob/bc7985cc9838c9bc3d40b631e328acb1a62e855a/src/shared/util.tsx#L64
+Look in [JOINT_LIMITS](https://github.com/hello-robot/stretch_web_teleop/blob/bc7985cc9838c9bc3d40b631e328acb1a62e855a/src/shared/util.tsx#L64) for the complete list of joint_names and the min/max values allowed. You can add them to joint_names in the moveLift function in App.js.
