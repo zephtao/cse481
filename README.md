@@ -5,6 +5,7 @@ When we want to use our workspace on the robot, run this command first:\
 
 Every time you run code that moves the joints, you'll have to run this command:\
 `stretch_robot_home.py`
+If you get an error saying "cannot home while run_stopped", you need to push the button on the side top of the robot until it beeps to unlock the run_stop.
 
 To launch the driver:\
 `ros2 launch stretch_core stretch_driver.launch.py`
