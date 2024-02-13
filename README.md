@@ -10,7 +10,9 @@ If you get an error saying "cannot home while run_stopped", you need to push the
 To launch the driver:\
 `ros2 launch stretch_core stretch_driver.launch.py mode:=position`\
 `mode` can be set to `navigation`, `position`, or `trajectory`\
-Set it to `position` for keyboard teleoperating the robot.
+Set it to `position` for keyboard teleoperating the robot.\
+The driver should be running when you want to programatically control the robot.\
+The driver may prevent other things from running, like homing the robot through ROS.
 
 To start the web socket on the robot, use this command:\
 `ros2 launch rosbridge_server rosbridge_websocket_launch.xml`
