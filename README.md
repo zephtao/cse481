@@ -8,7 +8,9 @@ Every time you run code that moves the joints, you'll have to run this command:\
 If you get an error saying "cannot home while run_stopped", you need to push the button on the side top of the robot until it beeps to unlock the run_stop.
 
 To launch the driver:\
-`ros2 launch stretch_core stretch_driver.launch.py`
+`ros2 launch stretch_core stretch_driver.launch.py mode:=position`\
+`mode` can be set to `navigation`, `position`, or `trajectory`\
+Set it to `position` for keyboard teleoperating the robot.
 
 To start the web socket on the robot, use this command:\
 `ros2 launch rosbridge_server rosbridge_websocket_launch.xml`
