@@ -14,6 +14,7 @@ import ROSLIB from "roslib";
 function App() {
   document.body.style = 'background: white;';  // control background color of the webpage
 
+  // for drawing:
   const [drawing, setDrawing] = useState(false);
   const [lines, setLines] = useState([]);
   const [color, setColor] = useState('#000');
@@ -22,7 +23,16 @@ function App() {
   const [shapes, setShapes] = useState([]);
   const [isEraserActive, setIsEraserActive] = useState(false);
   const [nextId, setNextId] = useState(0);
+
+  // for robot/ROS:
   const [isConnected, setIsConnected] = useState(false);
+  const [liftPosition, setLiftPosition] = useState(0);
+  const [wristExtension, setWristExtension] = useState(0);
+
+  const JOINT_LIMITS = {
+    "joint_lift": [0.175, 1.05],
+    "wrist_extension": [0.05, 0.518]
+  }
 
   const ros = new ROSLIB.Ros({
     url : "ws://slinky.hcrlab.cs.washington.edu:9090"
@@ -30,8 +40,10 @@ function App() {
 
   let trajectoryClient = null;
 
+  // once the ROS connection is made, create the trajectory client
   ros.on('connection', () => {
     setIsConnected(true);
+    subscribeToJointState();
 
     trajectoryClient = new ROSLIB.ActionHandle({
       ros: ros,
@@ -39,6 +51,161 @@ function App() {
       actionType: 'control_msgs/action/FollowJointTrajectory'
     });
   });
+
+  // subscribes to the topic that publishes the robot joint position
+  const subscribeToJointState = () => {
+    const jointStateTopic = new ROSLIB.Topic({
+      ros: ros,
+      name: '/stretch/joint_states',
+      messageType: 'sensor_msgs/JointState'
+    });
+
+    jointStateTopic.subscribe((msg) => {
+      const liftIndex = msg.name.indexOf('joint_lift');
+      const wristIndex = msg.name.indexOf('wrist_extension');
+
+      if (liftIndex !== -1) {
+        setLiftPosition(msg.position[liftIndex]);
+      }
+
+      if (wristIndex !== -1) {
+        setWristExtension(msg.position[wristIndex]);
+      }
+    });
+  };
+
+  const moveLiftUp = () => {
+    console.log("move lift up function called")
+    let upGoal = new ROSLIB.ActionGoal({
+      trajectory: {
+        header: {
+          stamp: {
+            secs: 0,
+            nsecs: 0
+          }
+        },
+        joint_names: ['joint_lift'],
+        points: [
+          {
+            positions: [liftPosition + 0.2],
+            time_from_start: {
+              secs: 1,
+              nsecs: 0
+            }
+          }
+        ]
+      }
+    });
+
+    trajectoryClient.createClient(upGoal);
+    console.log("move lift up new goal created")
+    console.log(upGoal)
+  }
+
+  const moveLiftDown = () => {
+    let downGoal = new ROSLIB.ActionGoal({
+      trajectory: {
+        header: {
+          stamp: {
+            secs: 0,
+            nsecs: 0
+          }
+        },
+        joint_names: ['joint_lift'],
+        points: [
+          {
+            positions: [liftPosition - 0.2],
+            time_from_start: {
+              secs: 1,
+              nsecs: 0
+            }
+          }
+        ]
+      }
+    });
+
+    trajectoryClient.createClient(downGoal);
+  }
+
+  const moveWristOut = () => {
+    let outGoal = new ROSLIB.ActionGoal({
+      trajectory: {
+        header: {
+          stamp: {
+            secs: 0,
+            nsecs: 0
+          }
+        },
+        joint_names: ['wrist_extension'],
+        points: [
+          {
+            positions: [wristExtension + 0.1],
+            time_from_start: {
+              secs: 1,
+              nsecs: 0
+            }
+          }
+        ]
+      }
+    });
+
+    trajectoryClient.createClient(outGoal);
+  }
+
+  const moveWristIn = () => {
+    console.log("move wrist in function called")
+    let inGoal = new ROSLIB.ActionGoal({
+      trajectory: {
+        header: {
+          stamp: {
+            secs: 0,
+            nsecs: 0
+          }
+        },
+        joint_names: ['wrist_extension'],
+        points: [
+          {
+            positions: [wristExtension - 0.1],
+            time_from_start: {
+              secs: 1,
+              nsecs: 0
+            }
+          }
+        ]
+      }
+    });
+
+    trajectoryClient.createClient(inGoal);
+  }
+
+  const moveLift = () => {
+    console.log("move lift to 0.3 function called")
+    let newGoal = new ROSLIB.ActionGoal({
+      trajectory: {
+        header: {
+          stamp: {
+            secs: 0,
+            nsecs: 0
+          }
+        },
+        joint_names: ['joint_lift'],
+        points: [
+          {
+            positions: [0.3],
+            time_from_start: {
+              secs: 1,
+              nsecs: 0
+            }
+          }
+        ]
+      }
+    });
+
+    trajectoryClient.createClient(newGoal);
+    console.log("move lift up new goal created")
+    console.log(newGoal)
+  };
+
 
   const handleMouseDown = (e) => {
     const stage = e.target.getStage();
@@ -116,31 +283,6 @@ function App() {
     }
   };
 
-  const moveLift = () => {
-    let newGoal = new ROSLIB.ActionGoal({
-      trajectory: {
-        header: {
-          stamp: {
-            secs: 0,
-            nsecs: 0
-          }
-        },
-        joint_names: ['joint_lift'],
-        points: [
-          {
-            positions: [0.3],
-            time_from_start: {
-              secs: 1,
-              nsecs: 0
-            }
-          }
-        ]
-      }
-    });
-
-    trajectoryClient.createClient(newGoal);
-  };
-
   if (!isConnected) {
     return (<div>Loading...</div>)
   };
@@ -150,7 +292,6 @@ function App() {
 
   return (
       <div>
-        <button onClick={() => moveLift()}>Move lift</button>
         <p>Is connected:</p>
         {isConnected}
         <div>
@@ -184,6 +325,13 @@ function App() {
           <button className="normal-button" onClick={toggleEraser}>{isEraserActive ? 'Disable Eraser' : 'Enable Eraser'}</button>
           <button className="normal-button" onClick={clearAllDrawings}>Clear</button>
 
+        </div>
+        <div>
+        <button className="normal-button" onClick={() => moveLift()}>Move Lift To 0.3</button>
+        <button className="normal-button" onClick={() => moveLiftUp()}>Move Lift Up</button>
+        <button className="normal-button" onClick={() => moveLiftDown()}>Move Lift Down</button>
+        <button className="normal-button" onClick={() => moveWristOut()}>Move Wrist Out</button>
+        <button className="normal-button" onClick={() => moveWristIn()}>Move Wrist In</button>
         </div>
         <Stage
             width={window.innerWidth}
