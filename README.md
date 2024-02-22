@@ -22,7 +22,7 @@ Look in [JOINT_LIMITS](https://github.com/hello-robot/stretch_web_teleop/blob/bc
 To see all packages:\
 `ros2 pkg list`
 
-Order of running commands when using web interface to control robot:\
+Order of running commands when using web interface to control robot:
 1. `stretch_robot_home.py`
 2. `ros2 launch stretch_core stretch_driver.launch.py`
 3. `ros2 launch rosbridge_server rosbridge_websocket_launch.xml`
