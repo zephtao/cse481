@@ -85,10 +85,6 @@ class ReplayMotions(Node):
             sys.exit()
 
         # joint names whose positions are included in the message to the action server:
-        # self.joint_names = ['joint_lift', 'wrist_extension', 'joint_wrist_yaw', 'joint_wrist_roll']
-        # self.joint_names = ['translate_mobile_base', 'joint_lift', 'wrist_extension', 'joint_wrist_yaw', 'joint_wrist_roll']
-        # next attempt: #UNCOMMENT
-        # self.joint_names = ['joint_lift', 'wrist_extension', 'joint_wrist_yaw', 'joint_wrist_pitch', 'joint_wrist_roll', 'joint_gripper_finger_left']
         self.joint_names = ['translate_mobile_base', 'joint_lift', 'wrist_extension','joint_gripper_finger_left']
         
         # read all the aruco -> grasp center transforms recorded
@@ -165,11 +161,6 @@ class ReplayMotions(Node):
         q_pitch = bound_range('joint_wrist_pitch', self.joint_states.position[9])
         q_roll = bound_range('joint_wrist_roll', self.joint_states.position[10])
 
-
-        # Kinematic chain: name=chain links=['Base link', 'joint_base_translation', 'joint_mast',
-        #'joint_lift', 'joint_arm_l4', 'joint_arm_l3', 'joint_arm_l2', 'joint_arm_l1', 'joint_arm_l0', 
-        #'joint_wrist_yaw', 'joint_wrist_yaw_bottom', 'joint_wrist_pitch', 'joint_wrist_roll', 'joint_straight_gripper',
-        #'joint_grasp_center'] active_links=[ True  True  True  True  True  True  True  True  True  True  True  True True  True  True]
         return [0.0, q_base, 0.0, q_lift, 0.0, q_arml, q_arml, q_arml, q_arml, q_yaw, 0.0, q_pitch, q_roll, 0.0, 0.0]
 
     def get_q_soln(self, target_point, q_init, base_only=False):
@@ -205,16 +196,21 @@ class ReplayMotions(Node):
         '''
          # block until joint trajectory done
         self.state = State.BLOCK
-        duration_goal = Duration(seconds=(2*step)).to_msg()
+        
+        #set up trajectory goal
         trajectory_goal = FollowJointTrajectory.Goal()
         trajectory_goal.trajectory.header.frame_id = 'base_link'
         trajectory_goal.trajectory.joint_names = self.joint_names
+
+        # create trajectory point
         goal_point = JointTrajectoryPoint()
+        duration_goal = Duration(seconds=(2*step)).to_msg()
+        goal_point.time_from_start = duration_goal.to_msg()
 
         if gripper_open:
-            goal_point.positions = [q[3], q[4] + q[5] + q[6] + q[7] + q[8], 00.16]
+            goal_point.positions = [q[1], q[3], q[4] + q[5] + q[6] + q[7] + q[8], 00.16]
         else: 
-             goal_point.positions = [q[3], q[5] + q[6] + q[7] + q[8], 0.22]
+             goal_point.positions = [q[1], q[3], q[5] + q[6] + q[7] + q[8], 0.22]
         
         trajectory_goal.trajectory.points = [goal_point]
         self.get_logger().info(f'trajectory goal to send:{trajectory_goal}')
@@ -271,8 +267,8 @@ class ReplayMotions(Node):
             main node entry function to playback 
             motions read from a pose file
         '''
-
-        if self.state == State.ARM_READY:
+        # only run this code if not awaiting for
+        if self.state is not State.BLOCK:
             self.get_logger().info(f'Attempting tf #{self.curr_file_tf}')
             file_tf =  self.file_transforms[self.curr_file_tf]
             target = self.transform_to_base_frame(file_tf)
@@ -283,17 +279,23 @@ class ReplayMotions(Node):
                 q_init = self.get_q_init() # shape (15,)
                 self.get_logger().info(f'Current joint positions: {q_init}')
                 self.get_logger().info('Solving Inverse Kinematics for goal point')
-                if (self.curr_file_tf == 0): 
+
+                if (self.curr_file_tf == 0): # first recording is always just for base movement
                     q = self.get_q_soln(target, q_init, True)
                 else:
                     q = self.get_q_soln(target, q_init)
+
                 self.get_logger().info(f'the solution is: {q}, will now attempt to move to the configuration')
-                self.move_to_configuration(q, self.curr_file_tf) #TOD makee gripper closed at certain step
+
+                if (self.curr_file_tf == len(self.file_transforms) - 2):  
+                    self.move_to_configuration(q, self.curr_file_tf, gripper_open=False) #close gripper for second to last step
+                else:
+                    self.move_to_configuration(q, self.curr_file_tf)
+
                 if self.curr_file_tf == len(self.file_transforms) -1:
                     rclpy.shutdown()
                 else :
                     self.curr_file_tf += 1
-
 
 def main():
     rclpy.init()
@@ -302,7 +304,6 @@ def main():
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-
 
 if __name__ == '__main__':
     main()
