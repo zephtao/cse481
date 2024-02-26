@@ -120,7 +120,7 @@ class ReplayMotions(Node):
       '''
       res = future.result().result
       self.get_logger().info('trajectory complete')
-      self.state = State.READY
+      self.state = State.ARM_READY
 
     def transform_to_base_frame(self, recorded_tf):
         '''
