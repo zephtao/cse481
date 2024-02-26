@@ -205,7 +205,7 @@ class ReplayMotions(Node):
         # create trajectory point
         goal_point = JointTrajectoryPoint()
         duration_goal = Duration(seconds=(2*step)).to_msg()
-        goal_point.time_from_start = duration_goal.to_msg()
+        goal_point.time_from_start = duration_goal
 
         if gripper_open:
             goal_point.positions = [q[1], q[3], q[4] + q[5] + q[6] + q[7] + q[8], 00.16]
