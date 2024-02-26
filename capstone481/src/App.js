@@ -283,9 +283,9 @@ function App() {
     }
   };
 
-  if (!isConnected) {
-    return (<div>Loading...</div>)
-  };
+  // if (!isConnected) {
+  //   return (<div>Loading...</div>)
+  // };
 
   // cmd_vel topic to move base
   // follow joint trajectory action server
@@ -333,6 +333,7 @@ function App() {
         <button className="normal-button" onClick={() => moveWristOut()}>Move Wrist Out</button>
         <button className="normal-button" onClick={() => moveWristIn()}>Move Wrist In</button>
         </div>
+
         <Stage
             width={window.innerWidth}
             height={window.innerHeight - 50}
