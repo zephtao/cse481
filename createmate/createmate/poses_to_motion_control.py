@@ -4,7 +4,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
-from rclpy.time import Duration
+from rclpy.duration import Duration
 from rclpy.action import ActionClient
 from ros2_numpy import numpify
 from geometry_msgs.msg import Transform
