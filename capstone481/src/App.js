@@ -29,37 +29,52 @@ function App() {
   const [liftPosition, setLiftPosition] = useState(0);
   const [wristExtension, setWristExtension] = useState(0);
 
+  // trajectory client
+  const [trajectoryClient, setTrajectoryClient] = useState(null);
+
+
   const JOINT_LIMITS = {
     "joint_lift": [0.175, 1.05],
     "wrist_extension": [0.05, 0.518]
   }
 
-  const ros = new ROSLIB.Ros({
-    url : "ws://slinky.hcrlab.cs.washington.edu:9090"
-  });
+  // let trajectoryClient = null;
+  let jointStateTopic = null;
 
-  let trajectoryClient = null;
 
-  // once the ROS connection is made, create the trajectory client
-  ros.on('connection', () => {
-    setIsConnected(true);
-    subscribeToJointState();
-
-    trajectoryClient = new ROSLIB.ActionHandle({
-      ros: ros,
-      name: '/stretch_controller/follow_joint_trajectory',
-      actionType: 'control_msgs/action/FollowJointTrajectory'
+  useEffect(() => {
+    const ros = new ROSLIB.Ros({
+      url : "ws://slinky.hcrlab.cs.washington.edu:9090"
     });
-  });
+
+    
+
+    // once the ROS connection is made, create the trajectory client
+    ros.on('connection', () => {
+      console.log("is connected");
+      setIsConnected(true);
+      
+
+      setTrajectoryClient(new ROSLIB.ActionHandle({
+        ros: ros,
+        name: '/stretch_controller/follow_joint_trajectory',
+        actionType: 'control_msgs/action/FollowJointTrajectory'
+      }));
+      console.log(trajectoryClient != null);
+
+      jointStateTopic = new ROSLIB.Topic({
+        ros: ros,
+        name: '/stretch/joint_states',
+        messageType: 'sensor_msgs/JointState'
+      });
+
+      subscribeToJointState();
+      
+    });
+  }, [])
 
   // subscribes to the topic that publishes the robot joint position
   const subscribeToJointState = () => {
-    const jointStateTopic = new ROSLIB.Topic({
-      ros: ros,
-      name: '/stretch/joint_states',
-      messageType: 'sensor_msgs/JointState'
-    });
-
     jointStateTopic.subscribe((msg) => {
       const liftIndex = msg.name.indexOf('joint_lift');
       const wristIndex = msg.name.indexOf('wrist_extension');
@@ -283,9 +298,9 @@ function App() {
     }
   };
 
-  // if (!isConnected) {
-  //   return (<div>Loading...</div>)
-  // };
+  if (!isConnected) {
+    return (<div>Loading...</div>)
+  };
 
   // cmd_vel topic to move base
   // follow joint trajectory action server
@@ -293,7 +308,7 @@ function App() {
   return (
       <div>
         <p>Is connected:</p>
-        {isConnected}
+        {isConnected ? "Connected" : "Not connected"}
         <div>
 
           <h1>Welcome To Our Coloring Robot Interface!</h1>
