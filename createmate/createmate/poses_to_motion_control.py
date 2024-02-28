@@ -203,9 +203,9 @@ class ReplayMotions(Node):
         goal_point.time_from_start = duration_goal
 
         if gripper_open:
-            goal_point.positions = [0, q[3], q[4] + q[5] + q[6] + q[7] + q[8], 0.16]
+            goal_point.positions = [0.0, q[3], q[4] + q[5] + q[6] + q[7] + q[8], 0.16]
         else: 
-             goal_point.positions = [0, q[3], q[4] + q[5] + q[6] + q[7] + q[8], 0.22]
+            goal_point.positions = [0.0, q[3], q[4] + q[5] + q[6] + q[7] + q[8], 0.22]
 
         if self.state == State.BASE_READY: # only moving base at the beginning
             goal_point.positions[0] = q[1]
@@ -305,3 +305,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
