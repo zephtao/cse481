@@ -69,14 +69,14 @@ def draw_circle_trajectory(n, diameter_m=0.2):
     x = (diameter_m / 2) * np.cos(t) + arm_init
     y = (diameter_m / 2) * np.sin(t) + lift_init
     circle_mat = np.c_[x, y]
-    time_dt = 15 / n
+    time_dt = 25 / n
     for i in range(n):
         pt = circle_mat[i]
         pt_t = i * time_dt
         r.arm.trajectory.add(t_s=pt_t, x_m=pt[0])
         r.lift.trajectory.add(t_s=pt_t, x_m=pt[1])
     r.follow_trajectory()
-    time.sleep(n * time_dt + 0.5)
+    time.sleep(n * time_dt + 1.5)
 
 
 
@@ -161,7 +161,7 @@ if __name__ == "__main__":
     if yn == 'y':
         setup_robot()
     # draw_circle_position_mode(10, 1.5)
-    # draw_circle_trajectory(50)
+    draw_circle_trajectory(50)
     # draw_triangle_trajectory_mode(0.5)
-    draw_triangle_position_mode(2)
+    # draw_triangle_position_mode(2)
     # draw_square_trajectory_mode(0.5, 0.5, time_dt=1.0)
