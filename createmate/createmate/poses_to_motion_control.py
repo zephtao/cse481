@@ -4,7 +4,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
-from rclpy.time import Duration
+from rclpy.duration import Duration
 from rclpy.action import ActionClient
 from ros2_numpy import numpify
 from geometry_msgs.msg import Transform
@@ -95,7 +95,7 @@ class ReplayMotions(Node):
         # timer for node to call motion playback
         time_period = 1.0
         self.timer = self.create_timer(time_period, self.playback_motions)
-        self.state = State.ARM_READY
+        self.state = State.BASE_READY
 
     # CALLBACKS FOR EXTERNAL NODE MESSAGES
     def joint_states_callback(self, joint_states):
@@ -120,7 +120,7 @@ class ReplayMotions(Node):
       '''
       res = future.result().result
       self.get_logger().info('trajectory complete')
-      self.state = State.READY
+      self.state = State.ARM_READY
 
     def transform_to_base_frame(self, recorded_tf):
         '''
@@ -163,14 +163,12 @@ class ReplayMotions(Node):
 
         return [0.0, q_base, 0.0, q_lift, 0.0, q_arml, q_arml, q_arml, q_arml, q_yaw, 0.0, q_pitch, q_roll, 0.0, 0.0]
 
-    def get_q_soln(self, target_point, q_init, base_only=False):
+    def get_q_soln(self, target_point, q_init):
         '''
         Returns the new chain positions for the end effector to reach the target point
         target_point: shape (3,)
         q_init: shape (15, ) for this urdf
-        base_only: boolean indicating whether only base movement is to be executed
         '''
-
         # target_point = self.read_motion_recording()
         # target_orientation = rpy_matrix(0.0, 0.0, -np.pi/2)
         # pretarget_orientation = rpy_matrix(0.0, 0.0, 0.0)
@@ -179,7 +177,7 @@ class ReplayMotions(Node):
         # self.get_logger().info(f'the chain links: {self.chain.links}')
         q_soln = self.chain.inverse_kinematics(target_point, initial_position=q_init)
 
-        if base_only: # only move the base, keep all other joints at their current position
+        if self.state == State.BASE_READY: # only move the base, keep all other joints at their current position
           q_init[1] = q_soln[1]
           q_soln = q_init
 
@@ -190,13 +188,10 @@ class ReplayMotions(Node):
         '''
             accepts chain link positions in terms of base_link and move robot to that configuration
             q: chain link positions
-            base: boolean indicatingwhether only the base is being moved
+            base: boolean indicating whether only the base is being moved
             gripper_open: bolean indicating whether the gripper should be open 
                 for this step (true if base_only)
         '''
-         # block until joint trajectory done
-        self.state = State.BLOCK
-        
         #set up trajectory goal
         trajectory_goal = FollowJointTrajectory.Goal()
         trajectory_goal.trajectory.header.frame_id = 'base_link'
@@ -205,16 +200,21 @@ class ReplayMotions(Node):
         # create trajectory point
         goal_point = JointTrajectoryPoint()
         duration_goal = Duration(seconds=(2*step)).to_msg()
-        goal_point.time_from_start = duration_goal.to_msg()
+        goal_point.time_from_start = duration_goal
 
         if gripper_open:
-            goal_point.positions = [q[1], q[3], q[4] + q[5] + q[6] + q[7] + q[8], 00.16]
+            goal_point.positions = [0, q[3], q[4] + q[5] + q[6] + q[7] + q[8], 0.16]
         else: 
-             goal_point.positions = [q[1], q[3], q[5] + q[6] + q[7] + q[8], 0.22]
-        
+             goal_point.positions = [0, q[3], q[4] + q[5] + q[6] + q[7] + q[8], 0.22]
+
+        if self.state == State.BASE_READY: # only moving base at the beginning
+            goal_point.positions[0] = q[1]
+
         trajectory_goal.trajectory.points = [goal_point]
         self.get_logger().info(f'trajectory goal to send:{trajectory_goal}')
-
+        # block until joint trajectory done
+        self.state = State.BLOCK
+        # send joint trajectory
         self._get_result_future = self.trajectory_client.send_goal_async(trajectory_goal)
         self._get_result_future.add_done_callback(self.trajectory_server_response) # block calculating new poses until motion is complete
 
@@ -280,10 +280,7 @@ class ReplayMotions(Node):
                 self.get_logger().info(f'Current joint positions: {q_init}')
                 self.get_logger().info('Solving Inverse Kinematics for goal point')
 
-                if (self.curr_file_tf == 0): # first recording is always just for base movement
-                    q = self.get_q_soln(target, q_init, True)
-                else:
-                    q = self.get_q_soln(target, q_init)
+                q = self.get_q_soln(target, q_init)
 
                 self.get_logger().info(f'the solution is: {q}, will now attempt to move to the configuration')
 
@@ -293,6 +290,7 @@ class ReplayMotions(Node):
                     self.move_to_configuration(q, self.curr_file_tf)
 
                 if self.curr_file_tf == len(self.file_transforms) -1:
+                    self.get_logger.info("done replaying all poses")
                     rclpy.shutdown()
                 else :
                     self.curr_file_tf += 1
