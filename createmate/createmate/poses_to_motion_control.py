@@ -85,7 +85,7 @@ class ReplayMotions(Node):
             sys.exit()
 
         # joint names whose positions are included in the message to the action server:
-        self.joint_names = ['translate_mobile_base', 'joint_lift', 'wrist_extension','joint_gripper_finger_left']
+        self.joint_names = ['translate_mobile_base', 'joint_lift', 'wrist_extension','gripper_aperture', 'joint_wrist_pitch']
         
         # read all the aruco -> grasp center transforms recorded
         self.file_transforms = self.read_pose_file()
@@ -119,7 +119,7 @@ class ReplayMotions(Node):
         completion of trajectory request
       '''
       res = future.result().result
-      self.get_logger().info('trajectory complete')
+      self.get_logger().info(f'trajectory complete, result: {res}')
       self.state = State.ARM_READY
 
     def transform_to_base_frame(self, recorded_tf):
@@ -199,13 +199,13 @@ class ReplayMotions(Node):
 
         # create trajectory point
         goal_point = JointTrajectoryPoint()
-        duration_goal = Duration(seconds=(2*step)).to_msg()
+        duration_goal = Duration(seconds=(4*step)).to_msg()
         goal_point.time_from_start = duration_goal
 
         if gripper_open:
-            goal_point.positions = [0.0, q[3], q[4] + q[5] + q[6] + q[7] + q[8], 0.16]
+            goal_point.positions = [0.0, q[3], 4 * q[5], 0.08, 0.0]
         else: 
-            goal_point.positions = [0.0, q[3], q[4] + q[5] + q[6] + q[7] + q[8], 0.22]
+            goal_point.positions = [0.0, q[3], 4 * q[5], -0.12, 0.0]
 
         if self.state == State.BASE_READY: # only moving base at the beginning
             goal_point.positions[0] = q[1]
@@ -217,6 +217,7 @@ class ReplayMotions(Node):
         # send joint trajectory
         self._get_result_future = self.trajectory_client.send_goal_async(trajectory_goal)
         self._get_result_future.add_done_callback(self.trajectory_server_response) # block calculating new poses until motion is complete
+
 
 
     def parse_transform_string(self, transform_string):
@@ -272,7 +273,7 @@ class ReplayMotions(Node):
             self.get_logger().info(f'Attempting tf #{self.curr_file_tf}')
             file_tf =  self.file_transforms[self.curr_file_tf]
             target = self.transform_to_base_frame(file_tf)
-
+            self.get_logger().info(f'target point for wrist center: {target}')
             # only continue is file point transformed to base_link successfully
             if target is not None:
                 self.get_logger().info('Retrieving current joint positions...')
@@ -284,15 +285,17 @@ class ReplayMotions(Node):
 
                 self.get_logger().info(f'the solution is: {q}, will now attempt to move to the configuration')
 
-                if (self.curr_file_tf == len(self.file_transforms) - 2):  
+                if (self.curr_file_tf >= len(self.file_transforms) - 2):  
                     self.move_to_configuration(q, self.curr_file_tf, gripper_open=False) #close gripper for second to last step
-                else:
-                    self.move_to_configuration(q, self.curr_file_tf)
-
-                if self.curr_file_tf == len(self.file_transforms) -1:
-                    self.get_logger.info("done replaying all poses")
+                    self.curr_file_tf += 1
+                elif (self.curr_file_tf >= len(self.file_transforms) - 1):
+                    self.get_logger().info("done replaying all poses")
+                    # lift marker
+                    q[3] = 1.1
+                    self.move_to_configuration(q, self.curr_file_tf + 1, gripper_open=False)
                     rclpy.shutdown()
                 else :
+                    self.move_to_configuration(q, self.curr_file_tf)
                     self.curr_file_tf += 1
 
 def main():
@@ -305,4 +308,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

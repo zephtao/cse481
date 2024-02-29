@@ -20,8 +20,8 @@ class FrameListener(Node):
         self.posefile = open('/home/hello-robot/cse481/zephyr_ws/poses.txt', 'w')
         
     def record_transform(self, msg):
-        from_frame_rel = 'target_object1'
-        target_frame = 'link_grasp_center' # holds all our desired frame
+        from_frame_rel = 'link_grasp_center'#'target_object1'
+        target_frame = 'target_object1' #'link_grasp_center' # holds all our desired frame
         if msg.data == 'record_pose':
             self.get_logger().info('Received request to record transform')
             try:
