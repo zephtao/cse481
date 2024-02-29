@@ -3,10 +3,11 @@ This file is for drawing shapes (circle, triangle, rectangle) with the trajector
 the stretch driver can also run simultaneously with this script.
 
 use the ActionClient to use the ROS2 Strech libraries
-Create an ActionClient for the trajectory
+Create an ActionClient for the trajectory - server already exists
 (this should just add it to a list of waypoints for a shape)
 
 figure out what joint states are sent as messages
+'joint_lift', 'joint_arm_l0', 
 '''
 
 
