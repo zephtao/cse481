@@ -1,4 +1,7 @@
 from stretch_nav2.robot_navigator import BasicNavigator, TaskResult
+import rclpy
+from rclpy.action import ActionClient
+from rclpy.node import Node
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseWithCovariance, Pose, PoseStamped
 from geometry_msgs.msg import Point, Quaternion
 from rclpy.time import Time
@@ -14,15 +17,15 @@ class Nav2Markers(Node):
 
       # subscribe to the initial pose topic
       self.init_pose_sub = self.create_subscription(PoseWithCovarianceStamped, 'acml_pose', self.define_init_pose, 10)
-      self.init_pose = PointStamped()
+      self.init_pose = Pose()
       self.init_pose.header.frame_id = 'map'
       self.initial_pose_set = False
 
       # read goal pose
-      self.goal = PoseStamped()
+      self.goal = Pose()
       self.goal.header.frame_id = 'map'
-      with open('goal_pose.csv', mode='r') as goal_f:
-        pose_data = csv.reader(file, delimiter = ',')
+      with open('/home/hello-robot/cse481/zephyr_ws/goal_by_marker_pose.csv', mode='r') as goal_f:
+        pose_data = csv.reader(goal_f, delimiter = ',')
       
       #assuming csv data stored in this format
       self.goal.pose.position = Point(x=pose_data[0], y=pose_data[1], z=pose_data[2])
@@ -50,7 +53,7 @@ class Nav2Markers(Node):
       self.goal_handle = send_goal_future.result()
 
       if not self.goal_handle.accepted:
-        self.error('Goal to ' + str(pose.pose.position.x) + ' ' + str(pose.pose.position.y) + ' was rejected!')
+        self.error('Goal to was rejected!')
         return False
 
       self.result_future = self.goal_handle.get_result_async()
@@ -71,9 +74,7 @@ def main():
   # initialize node
   rclpy.init()
   navigate_to_markers = Nav2Markers()
-
-
   # wait for initial pose to be sent
-  self.get_logger().info('Send an initial pose estimate through the /setInitialPose topic (can be done on rviz)')
+  print('Send an initial pose estimate through the /setInitialPose topic (can be done on rviz)')
   navigate_to_markers.wait_for_init_pose()
   navigate_to_markers.nav_to_goal()
