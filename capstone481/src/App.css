@@ -2,6 +2,46 @@
   text-align: center;
 }
 
+.shape-area {
+  position: relative;
+  width: 500px;
+  height: 600px;
+  border: 2px solid black;
+ }
+ 
+ .shape-area-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+ }
+ 
+ .shape {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+ }
+ 
+ .circle {
+  border-radius: 50%;
+  background-color: red;
+ }
+ 
+ .triangle {
+  width: 0;
+  height: 0;
+  border-left: 50px solid transparent;
+  border-right: 50px solid transparent;
+  border-bottom: 100px solid blue;
+ }
+ 
+ .square {
+  background-color: green;
+ }
+
 .App-logo {
   height: 40vmin;
   pointer-events: none;
