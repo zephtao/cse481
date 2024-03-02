@@ -25,7 +25,7 @@ setup(
             'playback_recording=createmate.poses_to_motion_control:main',
             'draw_circle=createmate.draw_circle:main',
             'write_pose=createmate.write_curr_pose:main',
-            'nav2markers=createmate.navigate_to_markers.py:main'
+            'nav2markers=createmate.navigate_to_markers:main'
         ],
     },
 )
