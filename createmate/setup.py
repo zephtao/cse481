@@ -22,7 +22,10 @@ setup(
         'console_scripts': [
             'aruco_frame_listener=createmate.aruco_frame_listener:main',
             'keyboard_save_transform=createmate.keyboard_save_transform:main',
-            'playback_recording=createmate.poses_to_motion_control:main'
+            'playback_recording=createmate.poses_to_motion_control:main',
+            'draw_circle=createmate.draw_circle:main',
+            'write_pose=createmate.write_curr_pose:main',
+            'nav2markers=createmate.navigate_to_markers.py:main'
         ],
     },
 )
