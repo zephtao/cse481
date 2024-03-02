@@ -6,13 +6,14 @@ import csv
 
 # topic for initial pose "/setInitialPose"
 #   type /geometry_msgs/msg/PoseWithCovarianceStamped
+# topic for rviz is /goal_pose
 
 class Nav2Markers(Node):
     def _init_(self):
       super()._init_('nav2marker')
 
       # subscribe to the initial pose topic
-      self.init_pose_sub = self.create_subscription(PoseWithCovarianceStamped, 'setInitialPose', self.define_init_pose, 10)
+      self.init_pose_sub = self.create_subscription(PoseWithCovarianceStamped, 'acml_pose', self.define_init_pose, 10)
       self.init_pose = PointStamped()
       self.init_pose.header.frame_id = 'map'
       self.initial_pose_set = False
@@ -32,27 +33,39 @@ class Nav2Markers(Node):
       # self.compute_path_to_pose_client = ActionClient(
       #       self, ComputePathToPose, 'compute_path_to_pose'
       #   )
+    def nav_callback(self, msg):
+      self.get_logger().info('feedback received: {msg}')
 
     def nav_to_goal(self):
       while not self.nav_to_pose_client.wait_for_server(timeout_sec=1.0):
             self.info("'NavigateToPose' action server not available, waiting...")
       goal_msg = NavigateToPose.Goal()
-      goal_msg.pose = pose
-      goal_msg.b
+      goal_msg.pose = self.goal
+      # goal_msg.pose.position.x = 0.0
+      # goal_msg.pose.position.y = 0.0
+      # goal_msg.behavior_tree = ''
+      self.info(f'Navigating to goal: {self.goal}')
+      send_goal_future = self.nav_to_pose_client.send_goal_async(goal_msg, self.nav_callback())
+      rclpy.spin_until_future_complete(self, send_goal_future)   
+      self.goal_handle = send_goal_future.result()
+
+      if not self.goal_handle.accepted:
+        self.error('Goal to ' + str(pose.pose.position.x) + ' ' + str(pose.pose.position.y) + ' was rejected!')
+        return False
+
+      self.result_future = self.goal_handle.get_result_async()
+      return True   
 
 
     def define_init_pose(self, pose_with_covar):
       self.init_pose.header.stamp = self.nav.get_clock().now().to_msg()
-      self.init_pose = pose_with_covar.pose # define the initial pose
+      self.init_pose = pose_with_covar.pose.pose # define the initial pose
       self.initial_pose_set = True
 
     def wait_for_init_pose(self):
       while not self.initial_pose_set:
-        rclpy.spin_once(self, timeout_sec=0.5)
-
+        rclpy.spin_once(self, timeout_sec=1)
       self.get_logger().info(f'received the initial start pose! Will now try to navigate to this goal pose: {self.goal}')
-      
-
 
 def main():
   # initialize node
