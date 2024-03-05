@@ -2,45 +2,47 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import ROSLIB from "roslib";
 
+////////////////////////////// CANVAS //////////////////////////////
+function Canvas({ selectedShape, setSelectedShape, shapeList, setShapeList }) {
+  const handleAreaClick = (event) => {
+    const { offsetX, offsetY } = event.nativeEvent;
+
+    if (offsetX >= 60 && offsetX <= 440 && offsetY >= 60 && offsetY <= 540) {
+      console.log('(x,y) coordinate:', offsetX, offsetY, 'shape:', selectedShape);
+      if (selectedShape) {
+          // get center of the shape element
+          const shapeWidth = 100;
+          const shapeHeight = 100;
+          const centerX = offsetX - (shapeWidth / 2);
+          const centerY = offsetY - (shapeHeight / 2);
+          setShapeList([...shapeList, { type: selectedShape, x: centerX, y: centerY }]);
+      }
+    } else {
+      alert("ERROR: You placed the shape too close to the edge of the paper!")
+    }
+  };
+
+  return (
+      <div className="shape-area" onClick={handleAreaClick}>
+          {shapeList.map((shape, index) => (
+              <div
+                  key={index}
+                  className={`shape ${shape.type}`}
+                  style={{ left: shape.x, top: shape.y }}
+              ></div>
+          ))}
+      </div>
+  );
+}
+////////////////////////////// CANVAS //////////////////////////////
+
 function App() {
  // chronological list of shape types and (x,y) centers that the user added
  // each element has fields (type, x, y)
  const [shapeList, setShapeList] = useState([]);
  const [selectedShape, setSelectedShape] = useState(null);
 
- ////////////////////////////// CANVAS //////////////////////////////
- function Canvas({ selectedShape }) {
-   const handleAreaClick = (event) => {
-     const { offsetX, offsetY } = event.nativeEvent;
 
-     if (offsetX >= 50 && offsetX <= 450 && offsetY >= 50 && offsetY <= 550) {
-       console.log('(x,y) coordinate:', offsetX, offsetY, 'shape:', selectedShape);
-       if (selectedShape) {
-           // get center of the shape element
-           const shapeWidth = 100;
-           const shapeHeight = 100;
-           const centerX = offsetX - (shapeWidth / 2);
-           const centerY = offsetY - (shapeHeight / 2);
-           setShapeList([...shapeList, { type: selectedShape, x: centerX, y: centerY }]);
-       }
-     } else {
-       alert("ERROR: You placed the shape too close to the edge of the paper!")
-     }
-   };
-
-   return (
-       <div className="shape-area" onClick={handleAreaClick}>
-           {shapeList.map((shape, index) => (
-               <div
-                   key={index}
-                   className={`shape ${shape.type}`}
-                   style={{ left: shape.x, top: shape.y }}
-               ></div>
-           ))}
-       </div>
-   );
- }
- ////////////////////////////// CANVAS //////////////////////////////
 
  document.body.style = 'background: white;';  // control background color of the webpage
 
@@ -274,7 +276,7 @@ function App() {
         <button className="normal-button" onClick={() => moveWristIn()}>Move Wrist In</button>
         </div>
      <div className="shape-area-container">
-     <Canvas selectedShape={selectedShape} />
+     <Canvas selectedShape={selectedShape} setSelectedShape={setSelectedShape} shapeList={shapeList} setShapeList={setShapeList} />
      </div>
      <div className="shape-buttons">
        <p>Shape Options:</p>
