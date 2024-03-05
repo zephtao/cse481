@@ -3,19 +3,35 @@ import './App.css';
 import ROSLIB from "roslib";
 
 ////////////////////////////// CANVAS //////////////////////////////
-function Canvas({ selectedShape, setSelectedShape, shapeList, setShapeList }) {
+function Canvas({ selectedShape, shapeList, setShapeList, realShapeList, setRealShapeList }) {
   const handleAreaClick = (event) => {
     const { offsetX, offsetY } = event.nativeEvent;
 
+    const webCanvasWidth = 500;
+    const webCanvasHeight = 600;
+    const realCanvasWidth = 0.635;  // in meters
+    const realCanvasHeight = 0.762; // in meters
+
     if (offsetX >= 60 && offsetX <= 440 && offsetY >= 60 && offsetY <= 540) {
-      console.log('(x,y) coordinate:', offsetX, offsetY, 'shape:', selectedShape);
+      console.log('(x,y) offset:', offsetX, offsetY, 'shape:', selectedShape);
+
       if (selectedShape) {
           // get center of the shape element
           const shapeWidth = 100;
           const shapeHeight = 100;
           const centerX = offsetX - (shapeWidth / 2);
           const centerY = offsetY - (shapeHeight / 2);
+
+          // offsetX/500 = ?/0.635
+          // offsetY/600 = ?/0.762
+          const realCenterX = (offsetX * realCanvasWidth) / webCanvasWidth;
+          const realCenterY = (offsetY * realCanvasHeight) / webCanvasHeight;
+
+          console.log('real-life centerX:', realCenterX, 'meters');
+          console.log('real-life centerY:', realCenterY, 'meters');
+
           setShapeList([...shapeList, { type: selectedShape, x: centerX, y: centerY }]);
+          setRealShapeList([...realShapeList, {type: selectedShape, x: realCenterX, y: realCenterY}]);
       }
     } else {
       alert("ERROR: You placed the shape too close to the edge of the paper!")
@@ -40,9 +56,8 @@ function App() {
  // chronological list of shape types and (x,y) centers that the user added
  // each element has fields (type, x, y)
  const [shapeList, setShapeList] = useState([]);
+ const [realShapeList, setRealShapeList] = useState([]);
  const [selectedShape, setSelectedShape] = useState(null);
-
-
 
  document.body.style = 'background: white;';  // control background color of the webpage
 
@@ -53,10 +68,12 @@ function App() {
 
  const handleDoneClick = () => {
    console.log("User clicked on DONE button, shape list looks like:", shapeList);
+   console.log("User clicked on DONE button, real shape list looks like:", realShapeList);
  };
 
  const handleClearClick = () => {
    setShapeList([]);
+   setRealShapeList([]);
    console.log("User clicked on CLEAR button, shape list looks like:", shapeList);
  };
 
@@ -258,9 +275,9 @@ function App() {
   };
 
 
-  if (!isConnected) {
-    return (<div>Loading...</div>)
-  };
+  // if (!isConnected) {
+  //   return (<div>Loading...</div>)
+  // };
 
  return (
    <div className="App">
@@ -276,7 +293,7 @@ function App() {
         <button className="normal-button" onClick={() => moveWristIn()}>Move Wrist In</button>
         </div>
      <div className="shape-area-container">
-     <Canvas selectedShape={selectedShape} setSelectedShape={setSelectedShape} shapeList={shapeList} setShapeList={setShapeList} />
+     <Canvas selectedShape={selectedShape} shapeList={shapeList} setShapeList={setShapeList} realShapeList={realShapeList} setRealShapeList={setRealShapeList} />
      </div>
      <div className="shape-buttons">
        <p>Shape Options:</p>
