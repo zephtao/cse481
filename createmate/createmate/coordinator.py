@@ -19,10 +19,15 @@ import hello_helpers.hello_misc as hm
 '''
 class CoreState(Enum):
   HOME = 1,
-  SETUP = 2, 
-  DRAW_READY = 3
+  ACCEPTING_DRAW_REQs = 2,
+  DRAW_READY = 3,
 
-class Coordinator(Node):
+class ToolInHand:
+  NONE=''
+  TOOL1 = 'tool1'
+  TOOL2 = 'tool2'
+
+class CoordinatorActionServer(Node):
   '''
     Central coordinator in charge of handling communications with the javascript application 
     and relay instructions to position the robot according to the user request, request shapes/sizes
@@ -40,16 +45,22 @@ class Coordinator(Node):
     self.publisher = self.create_service(DrawShape, '/user_shape_req', self.handle_draw_req, 1)
 
     self.draw_ready_pub = self.create_publisher(Bool, '/createmate/draw_ready')
+    self.marker_HELD
 
     #timer
     timer_period = 1  # seconds
     self.timer = self.create_timer(timer_period, self.timer_callback)
 
+  def 
 
-  def handle_draw_req(self, draw_req):
-    if self.state == CoreState.DRAW_READY:  
+  def handle_draw_req(self, draw_reqs):
+    if self.state == CoreState.ACCEPTING_DRAW_REQs:
+      self.get_logger().info('Recieved the following draw request!: {draw_req}')
+      self.draw_reqs_to_handle = draw_reqs.req_shapes
+      return True
     else:
-      return 
+      self.get_logger().info('Not currently accepting drawing requests')
+      return False
     
   def robot_home_check(self, home_msg):
     '''
@@ -84,18 +95,12 @@ class Coordinator(Node):
   def timer_callback(self):
     self.draw_ready_pub.publish(self.state == CoreState.DRAW_READY) #TODO double check this isn't diff from Bool object
 
+
   def run_controller(self):
     # first, await homing message and finish homing sequence
     while self.state = CoreState.STARTUP:
       rclpy.spin_once(node)
     
-    
-    
-  
-
-      
-    
-
 
 def main():
   rclpy.init()
