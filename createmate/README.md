@@ -16,19 +16,18 @@ How ROS Nodes run:
           spin_once
           method_call_to_do_some_work()
 
-- .spin_until_future_complete: not sure someone fill this in when you figure it out. Will stop
-  spinning the node when the "future completes". Not currently fully sure of how to define said future.
+- .spin_until_future_complete: Will stop spinning the node when the "future completes". Futures seemed to be returned when you add a new callback to an action server
 
 Callbacks:
 - all asynchronous, however I think they are guaranteed to run uninterrupted until completion
 - I BELIEVE the executor will just queue up the callbacks
 - Strategy I've been using so far: setting a boolean/state variable that I check in a callback to see if I actually 
     want to run the callback code. For example, I didn't want to request a new joint movement until the previous one
-    was done, so I set a flag to keep track of this.
+    was done, so I set a flag to keep track of this (look in poses_to_motion_control.py for this)
 
 URDF
 The URDF we are using contains the following chain links:
-    Kinematic chain: name=chain links=['Base link', 'joint_base_translation', 'joint_mast',
+    Kinematic chain: name=chain links=['Base link', 'joint (base_translation', 'joint_mast',
     'joint_lift', 'joint_arm_l4', 'joint_arm_l3', 'joint_arm_l2', 'joint_arm_l1', 'joint_arm_l0', 
     'joint_wrist_yaw', 'joint_wrist_yaw_bottom', 'joint_wrist_pitch', 'joint_wrist_roll', 'joint_straight_gripper',
     'joint_grasp_center'] active_links=[ True  True  True  True  True  True  True  True  True  True  True  True True  True  True]
@@ -58,4 +57,4 @@ The order of joints in this topic is:
 - joint_wrist_pitch
 - joint_wrist_roll
 - joint_gripper_finger_left
-- joint_gripper_finger_right (Note: only use finger left or right in the JointTrajectory requests. either will result in the movement of both)
+- joint_gripper_finger_right (Note: only use finger left or right in the JointTrajectory requests. either will result in the movement of both) UPDATE: aperture was better to use and
