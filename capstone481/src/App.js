@@ -246,35 +246,6 @@ function App() {
     trajectoryClient.createClient(inGoal);
   }
 
-  const moveLift = () => {
-    console.log("move lift to 0.3 function called")
-    let newGoal = new ROSLIB.ActionGoal({
-      trajectory: {
-        header: {
-          stamp: {
-            secs: 0,
-            nsecs: 0
-          }
-        },
-        joint_names: ['joint_lift'],
-        points: [
-          {
-            positions: [0.3],
-            time_from_start: {
-              secs: 1,
-              nsecs: 0
-            }
-          }
-        ]
-      }
-    });
-
-    trajectoryClient.createClient(newGoal);
-    console.log("move lift up new goal created")
-    console.log(newGoal)
-  };
-
-
   // if (!isConnected) {
   //   return (<div>Loading...</div>)
   // };
@@ -286,7 +257,6 @@ function App() {
      <h1>Welcome To Our Robot Coloring Interface!</h1>
      <p>Select a shape option, then click anywhere on the canvas to place it!</p>
      <div>
-        <button className="normal-button" onClick={() => moveLift()}>Move Lift To 0.3</button>
         <button className="normal-button" onClick={() => moveLiftUp()}>Move Lift Up</button>
         <button className="normal-button" onClick={() => moveLiftDown()}>Move Lift Down</button>
         <button className="normal-button" onClick={() => moveWristOut()}>Move Wrist Out</button>
