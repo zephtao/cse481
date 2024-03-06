@@ -69,6 +69,7 @@ function App() {
  const handleDoneClick = () => {
    console.log("User clicked on DONE button, shape list looks like:", shapeList);
    console.log("User clicked on DONE button, real shape list looks like:", realShapeList);
+   sendRealShapeListToROS();
  };
 
  const handleClearClick = () => {
@@ -82,38 +83,31 @@ function App() {
   const [liftPosition, setLiftPosition] = useState(0);
   const [wristExtension, setWristExtension] = useState(0);
 
-  // trajectory client
   const [trajectoryClient, setTrajectoryClient] = useState(null);
-
+  const [actionClient, setActionClient] = useState(null);
 
   const JOINT_LIMITS = {
     "joint_lift": [0.175, 1.05],
     "wrist_extension": [0.05, 0.518]
   }
 
-  // let trajectoryClient = null;
   let jointStateTopic = null;
-
 
   useEffect(() => {
     const ros = new ROSLIB.Ros({
       url : "ws://slinky.hcrlab.cs.washington.edu:9090"
     });
 
-    
-
     // once the ROS connection is made, create the trajectory client
     ros.on('connection', () => {
       console.log("is connected");
       setIsConnected(true);
       
-
       setTrajectoryClient(new ROSLIB.ActionHandle({
         ros: ros,
         name: '/stretch_controller/follow_joint_trajectory',
         actionType: 'control_msgs/action/FollowJointTrajectory'
       }));
-      console.log(trajectoryClient != null);
 
       jointStateTopic = new ROSLIB.Topic({
         ros: ros,
@@ -122,9 +116,40 @@ function App() {
       });
 
       subscribeToJointState();
+
+      // action client for sending shape info to ROS
+      setActionClient(new ROSLIB.ActionClient({
+        ros: ros,
+        serverName: 'user_draw_shapes',
+        actionName: 'DrawShapes.action'
+      }));
       
     });
   }, [])
+
+  ////////////////////////////// SEND SHAPE INFO TO ROS //////////////////////////////
+  const drawShapesMsg = new ROSLIB.Message({
+    shapes: []
+  });
+
+  const sendRealShapeListToROS = () => {
+    realShapeList.forEach((shape) => {
+      const shapeMsg = new ROSLIB.Message({
+        shape: shape.type,
+        start_location: {
+          x: shape.x,
+          y: shape.y,
+          z: 0
+        }
+      });
+
+      drawShapesMsg.shapes.push(shapeMsg);
+    });
+
+    const actionGoal = new ROSLIB.ActionGoal({goal: drawShapesMsg});
+    actionClient.sendGoal(actionGoal);
+  }
+  ////////////////////////////// SEND SHAPE INFO TO ROS //////////////////////////////
 
   // subscribes to the topic that publishes the robot joint position
   const subscribeToJointState = () => {
