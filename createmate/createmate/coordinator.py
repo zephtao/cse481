@@ -93,27 +93,46 @@ class CoordinatorActionServer(Node):
     '''
       Orchestrate user drawing request execution
     '''
-    ds_goals = goal_handle.request
+    # extract requested shape goals
+    ds_goals = goal_handle.request.shape_goals.shapes #list of shape messages
     self.get_logger().info('executing goal: {ds_goals}')
     
     # init feedback
     shapes_feedback = DrawShapes.Feedback()
     
+    # keep track of whether all shapes succeeded
+    int completed_shapes = 0
 
     # loop through requested shapes
-    for i in range(len(ds_goals.shapes)):
+    for i in range(len(ds_goals)): #DrawShapes message array of shapes
       shapes_feedback.shape_num = i
       shapes_feedback.status = "setup"
+      goal_handle.publish_feedback(shapes_feedback)
       #1: check correct drawing implement being held
       if shape_req.tool != self.tool_in_grip:
         #1 initiate tool pickup
         self.tool_in_grip = shape_req.tool
       shapes_feedback.status = "init drawing"
-      #2 send drawing request
-      shape_goal_msg = ds_goals.shapes[]
-      self.robo_shape_action_client.send_goal()
+      goal_handle.publish_feedback(shapes_feedback)
+      #2 send drawing request 
+      shape_goal_msg = ds_goals[i]
+      shape_result = self.robo_shape_action_client.send_goal(shape_goal_msg) #drawing node uses the Shape messages in the DrawShapes messages
+      if shape_result == "COMPLETE"
+        shapes_feedback.status = "complete" #TODO: add a failure check if drawing node sends failure
+        completed_shapes += 1
+      else:
+        shapes_feedback.status = "failed"
+      goal_handle.publish_feedback(shapes_feedback)
 
-      shapes_feedback.status = "complete" #TODO: add a failure check if drawing node sends failure
+    goal_handle.succeed()
+    result = DrawShapes.Result()
+
+    # reply with results
+    if completed_shapes == len(ds_goals):
+      result.success = True
+    else:
+      result.success = False
+    return result
 
   def run_controller(self):
     '''
