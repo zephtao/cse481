@@ -1,2 +1,8 @@
-
-String curr_
+# Request
+DrawShapes shape_goals
+---
+# Result
+bool sucess
+---
+# Feedback
+ShapesProgression
