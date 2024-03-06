@@ -1,8 +1,0 @@
-# Request
-DrawShapes shape_goals
----
-# Result
-bool total_sucess
----
-# Feedback
-ShapesProgression shape_progress
