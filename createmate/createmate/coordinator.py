@@ -20,10 +20,9 @@ import hello_helpers.hello_misc as hm
 '''
 
 class CoreState(Enum):
-  HOME = 1,
+  STARTUP = 1,
   ACCEPTING_DRAW_REQs = 2,
-  SETTING_UP= 3,
-  DRAWING = 4
+  DRAWING = 3
 
 class Tool:
   NONE=''
@@ -97,16 +96,24 @@ class CoordinatorActionServer(Node):
     ds_goals = goal_handle.request
     self.get_logger().info('executing goal: {ds_goals}')
     
+    # init feedback
+    shapes_feedback = DrawShapes.Feedback()
+    
+
     # loop through requested shapes
-    for shape_req in ds_goals.shapes:
+    for i in range(len(ds_goals.shapes)):
+      shapes_feedback.shape_num = i
+      shapes_feedback.status = "setup"
       #1: check correct drawing implement being held
       if shape_req.tool != self.tool_in_grip:
         #1 initiate tool pickup
         self.tool_in_grip = shape_req.tool
+      shapes_feedback.status = "init drawing"
       #2 send drawing request
-      
+      shape_goal_msg = ds_goals.shapes[]
+      self.robo_shape_action_client.send_goal()
 
-
+      shapes_feedback.status = "complete" #TODO: add a failure check if drawing node sends failure
 
   def run_controller(self):
     '''
@@ -129,11 +136,12 @@ class CoordinatorActionServer(Node):
       goal_callback = self.handle_ui_draw_reqs
       callback_group = ui_exec_callback_group
     )
-  
-
-    # create an action client to communicate w/ the drawing node
     # action client to req marker switches
-    # action client for navigation node
+    #TODO: define both actions!
+    self.pickup_marker_action_client = ActionClient(self, PickupMarker, 'pickup_marker')
+    
+    # create an action client to communicate w/ the drawing node
+    self.robo_shape_action_client = ActionClient(self, StretchDrawShape, 'stretch_draw_shape')
 
 def main():
   rclpy.init()

@@ -5,4 +5,4 @@ DrawShapes shape_goals
 bool sucess
 ---
 # Feedback
-ShapesProgression
+ShapesProgression shape_progress
