@@ -101,7 +101,7 @@ class CoordinatorActionServer(Node):
     shapes_feedback = DrawShapes.Feedback()
     
     # keep track of whether all shapes succeeded
-    int completed_shapes = 0
+    int shape_failed = False
 
     # loop through requested shapes
     for i in range(len(ds_goals)): #DrawShapes message array of shapes
@@ -119,19 +119,16 @@ class CoordinatorActionServer(Node):
       shape_result = self.robo_shape_action_client.send_goal(shape_goal_msg) #drawing node uses the Shape messages in the DrawShapes messages
       if shape_result == "COMPLETE"
         shapes_feedback.status = "complete" #TODO: add a failure check if drawing node sends failure
-        completed_shapes += 1
       else:
         shapes_feedback.status = "failed"
+        shape_failed = True
       goal_handle.publish_feedback(shapes_feedback)
 
     goal_handle.succeed()
     result = DrawShapes.Result()
 
-    # reply with results
-    if completed_shapes == len(ds_goals):
-      result.success = True
-    else:
-      result.success = False
+    # reply with results (false success if ANY shapes failed)
+    result.total_success = !shape_failed
     return result
 
   def run_controller(self):
