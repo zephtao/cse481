@@ -1,9 +1,12 @@
 import rclpy
-from rclpy.action import ActionServer, GoalResponse
-from rclpy.callback_groups import ReentrantCallbackGroup()
+import createmate_interfaces.action
+from createmate_interfaces.msg import DrawShapes, Shape, ShapesProgression
+from enum import Enum
+from rclpy.action import ActionServer, ActionClient, GoalResponse
+from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from std_msgs import Bool
+from std_msgs.msg import Bool
 
 import hello_helpers.hello_misc as hm
 
@@ -21,7 +24,7 @@ import hello_helpers.hello_misc as hm
 
 class CoreState(Enum):
   STARTUP = 1,
-  ACCEPTING_DRAW_REQs = 2,
+  ACCEPTING_DRAW_REQS = 2,
   DRAWING = 3
 
 class Tool:
@@ -37,9 +40,11 @@ class CoordinatorActionServer(Node):
   '''
   def __init__(self):
     super().__init__('coordinator')
+    self.get_logger().info('starting up coordinator node')
     # startup robot
-    self.state = CoreState.STARTUP
-    self.tool_in_grip = Tool.NONE
+    self.state = CoreState.ACCEPTING_DRAW_REQS
+
+    self.tool_in_grip = Tool.TOOL1 #TODO: assumes starting off with marker in hand rn!
 
     # home robot to start
     self.home_sub = self.create_subscription(Bool, '/stretch/is_homed', self.robot_home_check, 1)
@@ -52,7 +57,7 @@ class CoordinatorActionServer(Node):
     home_msg: /std_msgs/Bool
     '''
     self.get_logger().info(f'Received robot homed topic message: {home_msg}')
-    if not home_msg && self.state == CoreState.STARTUP: #state check for redundancy
+    if not home_msg and self.state == CoreState.STARTUP: #state check for redundancy
       self.get_logger().info('Robot not yet homed, contacting home_the_robot server to initiate homing sequence')
 
       # CONNECT TO HOMING SERVICE
@@ -64,10 +69,11 @@ class CoordinatorActionServer(Node):
       self.get_logger().info('Node ' + self.node_name + ' connected to /home_the_robot service.')
 
       # REQUEST HOMING
-      trigger_req = Trigger.Request()
-      home_future = self.home_the_robot_service.call_async(trigger_req) # services return future that complete when request does
-      rclpy.spin_until_future_complete(self, home_future)
-      # TODO: rn this assumes the robot homing always goes smoothly
+      #TODO: uncomment when have robot control
+      # trigger_req = Trigger.Request()
+      # home_future = self.home_the_robot_service.call_async(trigger_req) # services return future that complete when request does
+      # rclpy.spin_until_future_complete(self, home_future)
+      # # TODO: rn this assumes the robot homing always goes smoothly
       self.get_logger().info('Robot finished the homing sequence!')
 
       # move onto next phase
@@ -101,7 +107,7 @@ class CoordinatorActionServer(Node):
     shapes_feedback = DrawShapes.Feedback()
     
     # keep track of whether all shapes succeeded
-    int shape_failed = False
+    shape_failed = False
 
     # loop through requested shapes
     for i in range(len(ds_goals)): #DrawShapes message array of shapes
@@ -117,7 +123,7 @@ class CoordinatorActionServer(Node):
       #2 send drawing request 
       shape_goal_msg = ds_goals[i]
       shape_result = self.robo_shape_action_client.send_goal(shape_goal_msg) #drawing node uses the Shape messages in the DrawShapes messages
-      if shape_result == "COMPLETE"
+      if shape_result == "COMPLETE":
         shapes_feedback.status = "complete" #TODO: add a failure check if drawing node sends failure
       else:
         shapes_feedback.status = "failed"
@@ -128,7 +134,7 @@ class CoordinatorActionServer(Node):
     result = DrawShapes.Result()
 
     # reply with results (false success if ANY shapes failed)
-    result.total_success = !shape_failed
+    result.total_success = not shape_failed
     return result
 
   def run_controller(self):
@@ -136,9 +142,11 @@ class CoordinatorActionServer(Node):
       Homes the robot and then sets up needed servers and clients using the default executor
     '''
     # first, await homing message and finish homing sequence
+    self.get_logger().info('get homing message')
     while self.state == CoreState.STARTUP:
-      rclpy.spin_once(node)
-    
+      rclpy.spin_once(self)
+
+    self.get_logger().info('setting up user interface action server')
     # create a separate reentrant callback group so blocking within the shape handling (bc of waitinf for actions), 
     # does not block other callbacks
     ui_exec_callback_group = ReentrantCallbackGroup()
@@ -146,22 +154,24 @@ class CoordinatorActionServer(Node):
     # start up the action server to receive drawing requests from UI
     self.user_draw_action_server = ActionServer(
       self,
-      DrawShapes,
+      createmate_interfaces.action.DrawShapes,
       'user_draw_shapes',
-      execute_callback = self.execute_user_draw_shapes
-      goal_callback = self.handle_ui_draw_reqs
+      execute_callback = self.execute_user_draw_shapes,
+      goal_callback = self.handle_ui_draw_reqs,
       callback_group = ui_exec_callback_group
     )
     # action client to req marker switches
     #TODO: define both actions!
-    self.pickup_marker_action_client = ActionClient(self, PickupMarker, 'pickup_marker')
+    self.get_logger().info('setting up action clients')
+    # self.pickup_marker_action_client = ActionClient(self, PickupMarker, 'pickup_marker')
     
-    # create an action client to communicate w/ the drawing node
-    self.robo_shape_action_client = ActionClient(self, StretchDrawShape, 'stretch_draw_shape')
+    # # create an action client to communicate w/ the drawing node
+    # self.robo_shape_action_client = ActionClient(self, StretchDrawShape, 'stretch_draw_shape')
+    self.get_logger().info('done setting up clients')
 
 def main():
   rclpy.init()
-  coor_node = Coordinator()
+  coor_node = CoordinatorActionServer()
 
   # first, will use default executor to home if necessary and set up servers/clients
   coor_node.run_controller()
