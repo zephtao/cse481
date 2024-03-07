@@ -18,6 +18,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ShapesProgression.msg"
   "msg/DrawShapes.msg"
   "action/DrawShapes.action"
+  "srv/DrawShape.srv"
+  "srv/PickupMarker.srv"
   DEPENDENCIES geometry_msgs # Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
 )
 

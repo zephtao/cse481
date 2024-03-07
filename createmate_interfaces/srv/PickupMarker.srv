@@ -1,0 +1,3 @@
+string markerid # should match the name of the aruco marker attached to drawing implement
+---
+bool success
