@@ -47,7 +47,7 @@ class CoordinatorActionServer(Node):
     self.tool_in_grip = Tool.TOOL1 #TODO: assumes starting off with marker in hand rn!
 
     # home robot to start
-    self.home_sub = self.create_subscription(Bool, '/stretch/is_homed', self.robot_home_check, 1)
+    self.home_sub = self.create_subscription(Bool, '/is_homed', self.robot_home_check, 1)
     self.is_homed = False
     # REMAINING FIELDS INITIALIZED IN RUN_CONTROLLER
     
