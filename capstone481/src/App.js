@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import ROSLIB from "roslib";
+import ROSLIB, { ActionClient } from "roslib";
 
 ////////////////////////////// CANVAS //////////////////////////////
 function Canvas({ selectedShape, shapeList, setShapeList, realShapeList, setRealShapeList }) {
@@ -118,10 +118,10 @@ function App() {
       subscribeToJointState();
 
       // action client for sending shape info to ROS
-      setActionClient(new ROSLIB.ActionClient({
+      setActionClient(new ROSLIB.ActionHandle({
         ros: ros,
-        serverName: 'user_draw_shapes',
-        actionName: 'DrawShapes.action'
+        name: 'user_draw_shapes',
+        actionType: 'createmate_interfaces/action/DrawShapes'
       }));
       
     });
@@ -136,6 +136,7 @@ function App() {
     realShapeList.forEach((shape) => {
       const shapeMsg = new ROSLIB.Message({
         shape: shape.type,
+        tool: '',
         start_location: {
           x: shape.x,
           y: shape.y,
@@ -146,8 +147,8 @@ function App() {
       drawShapesMsg.shapes.push(shapeMsg);
     });
 
-    const actionGoal = new ROSLIB.ActionGoal({goal: drawShapesMsg});
-    actionClient.sendGoal(actionGoal);
+    const actionGoal = new ROSLIB.ActionGoal({shape_goals: drawShapesMsg});
+    actionClient.createClient(actionGoal);
   }
   ////////////////////////////// SEND SHAPE INFO TO ROS //////////////////////////////
 
@@ -271,9 +272,9 @@ function App() {
     trajectoryClient.createClient(inGoal);
   }
 
-  // if (!isConnected) {
-  //   return (<div>Loading...</div>)
-  // };
+  if (!isConnected) {
+    return (<div>Loading...</div>)
+  };
 
  return (
    <div className="App">
