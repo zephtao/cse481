@@ -66,10 +66,6 @@ class DrawService(Node):
         self.joint_names = ['wrist_extension', 'joint_lift']
         self.join_sub = self.create_subscription(JointState, '/stretch/joint_states', self.joint_states_callback, 1)
 
-        # TODO: do we need this? from poses_to_motion: timer for node to call motion playback
-        time_period = 1.0
-        self.timer = self.create_timer(time_period, self.playback_motions)
-
     # CALLBACKS FOR EXTERNAL NODE MESSAGES
     def joint_states_callback(self, joint_states):
         '''
