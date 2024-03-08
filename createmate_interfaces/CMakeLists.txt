@@ -17,6 +17,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Shape.msg"
   "msg/ShapesProgression.msg"
   "msg/DrawShapes.msg"
+  "msg/RecordPose.msg"
   "action/DrawShapes.action"
   "srv/DrawShape.srv"
   "srv/PickupDrawTool.srv"
