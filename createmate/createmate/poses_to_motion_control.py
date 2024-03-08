@@ -47,35 +47,6 @@ class ReplayMotions(Node):
         # subscribe to current joint states and store
         self.joint_states = JointState()
         self.join_sub = self.create_subscription(JointState, '/stretch/joint_states', self.joint_states_callback, 1)
-            # /stretch/joint_wrist_state
-            #     name:
-            # - wrist_extension
-            # - joint_lift
-            # - joint_arm_l3
-            # - joint_arm_l2
-            # - joint_arm_l1
-            # - joint_arm_l0
-            # - joint_head_pan
-            # - joint_head_tilt
-            # - joint_wrist_yaw
-            # - joint_wrist_pitch
-            # - joint_wrist_roll
-            # - joint_gripper_finger_left
-            # - joint_gripper_finger_right
-            # position:
-            # - 0.10000606469070243
-            # - 0.6008078095092801
-            # - 0.025001516172675608
-            # - 0.025001516172675608
-            # - 0.025001516172675608
-            # - 0.025001516172675608
-            # - -0.09582797005421338
-            # - 0.02767317904990556
-            # - 0.003834951969714103
-            # - -0.015339807878856412
-            # - -0.0015339807878856412
-            # - 9.358721673485041e-05
-            # - 9.358721673485041e-05
 
         # create action client to move joints with stretch core driver
         self.trajectory_client = ActionClient(self, FollowJointTrajectory, '/stretch_controller/follow_joint_trajectory')
