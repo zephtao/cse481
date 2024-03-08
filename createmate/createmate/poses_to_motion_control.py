@@ -46,8 +46,8 @@ class ReplayMotions(Node):
 
         # subscribe to current joint states and store
         self.joint_states = JointState()
-        self.join_sub = self.create_subscription(JointState, '/stretch/joint_states', self.joint_states_callback, 1
-        
+        self.join_sub = self.create_subscription(JointState, '/stretch/joint_states', self.joint_states_callback, 1)
+
         # create action client to move joints with stretch core driver
         self.trajectory_client = ActionClient(self, FollowJointTrajectory, '/stretch_controller/follow_joint_trajectory')
         server_reached = self.trajectory_client.wait_for_server(timeout_sec=60.0)

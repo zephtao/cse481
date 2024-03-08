@@ -96,3 +96,7 @@ stretch_driver node info: We have access to all the following topics/services/ac
   Action Servers:
     /stretch_controller/follow_joint_trajectory: control_msgs/action/FollowJointTrajectory
   Action Client
+
+# saved poses
+- face_marker_table
+- face_canvas
