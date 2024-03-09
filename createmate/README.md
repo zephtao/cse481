@@ -98,5 +98,8 @@ stretch_driver node info: We have access to all the following topics/services/ac
   Action Client
 
 # saved poses
-- face_marker_table
-- face_canvas
+- stow_marker (position)
+- canvas_align (tf aruco)
+- grab_tool (tf aruco)
+- face_marker_table (location map)
+- face_canvas (location map)

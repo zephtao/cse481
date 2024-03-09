@@ -7,6 +7,7 @@ from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from rclpy.node import Node
 from rclpy.time import Time
 from std_msgs.msg import String, Header
+from sensor_msgs.msg import JointState
 from tf2_ros import TransformStamped
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
@@ -28,13 +29,23 @@ class PoseListener(Node):
     self.map_pose_sub = self.create_subscription(PoseWithCovarianceStamped, 'amcl_pose', self.save_map_pose, 1)
     self.map_pose = None
 
+    # subscribe to current joint states and store
+    self.joint_states = JointState()
+    self.join_sub = self.create_subscription(JointState, '/stretch/joint_states', self.joint_states_callback, 1)
+
     # check if pose file already exists and load previous data
-    self.pose_filepath = '/home/hello-robot/cse481/zephyr_ws/save_poses.json'
+    self.pose_filepath = '/home/hello-robot/cse481/team2/save_poses.json'
     if os.path.isfile(self.pose_filepath):
       with open(self.pose_filepath, 'r') as pose_file:
         self.poses = json.load(pose_file)
     else:
       self.poses = {}
+
+  def joint_states_callback(self, joint_states):
+    '''
+      callback to update current joint states from service
+    '''
+    self.joint_states = joint_states
 
   def save_map_pose(self, msg):
     '''
@@ -61,12 +72,22 @@ class PoseListener(Node):
           orientation = self.map_pose.pose.orientation
           vector = {'x': position.x, 'y': position.y, 'z': position.z}
           quaternion = {'x': orientation.x, 'y': orientation.y, 'z': orientation.z, 'w': orientation.w}
-          pose_entry =  {'type': 'pose', 'frame_id': self.map_pose.header.frame_id, 'child_frame_id': '', 'vector': vector, 'quaternion': quaternion}
+          pose_entry =  {'type': 'location', 'frame_id': self.map_pose.header.frame_id, 'child_frame_id': '', 'vector': vector, 'quaternion': quaternion}
         else:
           self.get_logger().info('could not localize robot on map')
           return
+      elif rec_msg.frame == 'base_link':
+        joints = {self.joint_states.name[1]:self.joint_states.position[1], #joint_lift
+                      'wrist_extension':self.joint_states.position[2] * 4, # extend
+                      self.joint_states.name[6]:self.joint_states.position[6], # head pan
+                      self.joint_states.name[7]:self.joint_states.position[7], # joint_head_tilt
+                      self.joint_states.name[8]:self.joint_states.position[8], #joint_wrist_yaw
+                      self.joint_states.name[9]:self.joint_states.position[9], #joint_wrist_pitch
+                      self.joint_states.name[10]:self.joint_states.position[10], # joint_wrist_roll
+                      }
+        pose_entry = {'type': 'position', 'frame_id': 'base_link', 'child_frame_id': '', 'joints': joints}
       else : # an aruco frame
-        tf = get_gripper_aruco_tf(rec_msg.frame)
+        tf = self.get_gripper_aruco_tf(rec_msg.frame)
         translation = tf.transform.translation
         rotation = tf.transform.rotation
         tf_vector = {'x': translation.x, 'y': translation.y, 'z': translation.z}

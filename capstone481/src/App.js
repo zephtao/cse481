@@ -149,6 +149,14 @@ function App() {
 
     const actionGoal = new ROSLIB.ActionGoal({shape_goals: drawShapesMsg});
     actionClient.createClient(actionGoal);
+
+    actionGoal.on('feedback', function(feedback) {
+      console.log('feedback: ' + feedback.shape_progress.shape_num);
+    });
+
+    actionGoal.on('result', function(result) {
+      console.log('result: ' + result.total_success);
+    });
   }
   ////////////////////////////// SEND SHAPE INFO TO ROS //////////////////////////////
 

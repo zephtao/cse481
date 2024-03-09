@@ -1,15 +1,14 @@
 import rclpy
 import createmate_interfaces.action
 from createmate_interfaces.msg import DrawShapes, Shape, ShapesProgression
-from createmate_interfaces.srv import Navigate, PickupDrawTool
+from createmate_interfaces.srv import Navigate, GoalPosition
 from enum import Enum
 from rclpy.action import ActionServer, ActionClient, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import Bool
-
-import hello_helpers.hello_misc as hm
+from std_srvs.srv import Trigger
 
 '''
   Coordinate between interface drawing requests and setup components
@@ -100,6 +99,25 @@ class CoordinatorActionServer(Node):
       self.get_logger().info('Not currently accepting drawing requests. Rejecting the following UI request: {draw_req}')
       return GoalResponse.REJECT
   
+  def to_shape_start(self, name, coor):
+    '''
+     coor (geometry_msg/point) is the middle of the shape
+    '''
+    # calc start coords
+    if name == 'triangle':
+      side_len = 0.15 #TODO hardcoded
+      height = 0.15
+      x = coor.x - (side_len / 2)
+      y = coor.y - (height / 2)
+    toShapeStartReq = GoalPosition.Request()
+    toShapeStartReq.markerid = 'target_object1'
+    toShapeStartReq.pose_name = 'setup_draw'
+    toShapeStartReq.x = x
+    toShapeStartReq.y = y
+    self.get_logger().info('attempting to line up marker for desired start')
+    res = self.pickup_tool_client.call(toShapeStartReq)
+    self.get_logger().info(f'marker at start point?!: {res}')
+
   def get_correct_tool(self, req_tool):
     if req_tool != self.tool_in_grip:
       # navigate to the marker table
@@ -109,8 +127,9 @@ class CoordinatorActionServer(Node):
       self.get_logger().info('result of createmate navigation service: {res}')
 
       # pickup the marker
-      pickupToolReq = PickupDrawTool.Request()
+      pickupToolReq = GoalPosition.Request()
       pickupToolReq.markerid = req_tool
+      pickupToolReq.pose_name = 'grab_tool'
       res = self.pickup_tool_client.call(pickupToolReq)
       self.get_logger().info('result of createmate pickup tool service: {res}')
       self.tool_in_grip = req_tool
@@ -120,7 +139,7 @@ class CoordinatorActionServer(Node):
       navSrvReq.target_map_pose = 'face_canvas'
       res = self.nav_client.call(navSrvReq)
       self.get_logger().info('result of createmate navigation service: {res}')
-
+      
   def execute_user_draw_shapes(self, goal_handle):
     '''
       Orchestrate user drawing request execution
@@ -140,13 +159,19 @@ class CoordinatorActionServer(Node):
       shapes_feedback.shape_num = i
       shapes_feedback.status = "setup"
       goal_handle.publish_feedback(shapes_feedback)
-      #1: check correct drawing implement being held
-      get_correct_tool(shape_req.tool)
+      #1: pickup correct drawing implement
+      self.get_correct_tool(ds_goals[i].tool)
 
-      #2 send drawing request 
-      shapes_feedback.status = "init drawing"
+      #2 move to canvas start point
+      shapes_feedback.status = "moving to canvas start point"
       goal_handle.publish_feedback(shapes_feedback)
       shape_goal_msg = ds_goals[i]
+      self.to_shape_start(shape_goal_msg.shape, shape_goal_msg.start_location)
+
+      #3 send drawing request 
+      shapes_feedback.status = "init drawing"
+      goal_handle.publish_feedback(shapes_feedback)
+  
       shape_result = self.robo_shape_action_client.send_goal(shape_goal_msg) #drawing node uses the Shape messages in the DrawShapes messages
       if shape_result == "COMPLETE":
         shapes_feedback.status = "complete" #TODO: add a failure check if drawing node sends failure
@@ -188,7 +213,7 @@ class CoordinatorActionServer(Node):
     self.get_logger().info('setting up service clients')
 
     # pickup marker service
-    self.pickup_tool_client = self.create_client(PickupDrawTool, 'pickup_draw_tool')
+    self.pickup_tool_client = self.create_client(PickupDrawTool, 'move_to_preset')
     while not self.pickup_tool_client.wait_for_service(timeout_sec=1.0):
       self.get_logger().info('service not available, waiting again...')
 

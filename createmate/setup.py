@@ -26,10 +26,11 @@ setup(
             'draw_circle=createmate.draw_circle:main',
             'write_pose=createmate.write_curr_pose:main',
             'nav2markers=createmate.navigate_to_markers:main',
-            'pickupmarker=createmate.pickup_marker:main',
+            'posemanipulate=createmate.move_to_preset_poses:main',
             'sleepyaction=createmate.sleepy_action_server:main',
-            'poselistener=createmate.pose_listener:main'
-            'navigatorsrv=createmate.navigator:main'
+            'poselistener=createmate.pose_listener:main',
+            'navigatorsrv=createmate.navigator:main',
+            'coordinator=createmate.coordinator:main'
         ],
     },
 )
