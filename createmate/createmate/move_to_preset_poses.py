@@ -58,9 +58,8 @@ class PickupMarker(Node):
 
     # create client to request change to position mode
     self.position_mode_client = self.create_client(Trigger, '/switch_to_position_mode', callback_group=ac_cbs)
-    pos_server_reached = self.position_mode_client.wait_for_server(timeout_sec=60.0)
-    if not pos_server_reached:
-        self.get_logger().error('Unable to connect to position mode server. Timeout exceeded.')
+    while not self.position_mode_client.wait_for_service(timeout_sec=60.0):
+      self.get_logger().info('waitinf on /switch_to_position_mode service')
 
     # subscribe to current joint states and store
     self.joint_states = JointState()
