@@ -26,7 +26,7 @@ class KeyboardInput(Node):
             msg.name = input('type pose name:')
             frame = int(input(f'Choose a frame\n{self.frame_choices}'))
 
-            while frame not in self.frame_choices.keys:
+            while frame not in self.frame_choices:
                 frame=input('incorrect input, try again: ')
             
             msg.frame = self.frame_choices.get(frame)
