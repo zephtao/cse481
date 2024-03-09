@@ -8,8 +8,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import Bool
-
-import hello_helpers.hello_misc as hm
+from std_srvs.srv import Trigger
 
 '''
   Coordinate between interface drawing requests and setup components
@@ -141,7 +140,7 @@ class CoordinatorActionServer(Node):
       shapes_feedback.status = "setup"
       goal_handle.publish_feedback(shapes_feedback)
       #1: check correct drawing implement being held
-      get_correct_tool(shape_req.tool)
+      self.get_correct_tool(ds_goals[i].tool)
 
       #2 send drawing request 
       shapes_feedback.status = "init drawing"
