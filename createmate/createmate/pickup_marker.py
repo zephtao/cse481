@@ -16,6 +16,7 @@ from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.time import Time
+from std_srvs.srv import Trigger
 from tf2_geometry_msgs import PointStamped, Point
 from tf2_ros.buffer import Buffer
 from tf2_ros import TransformException
@@ -32,6 +33,9 @@ class PickupSeq(Enum):
   GRASP=5,
   PICKUP=6
 
+'''
+I'M SORRY THIS A MISLEADING NAME. IT ALSO DOES PRESET POSES
+'''
 
 class PickupMarker(Node):
   'ros code to pickup a marker'
@@ -49,6 +53,12 @@ class PickupMarker(Node):
     # robot body vars
     self.urdf_path = '/home/hello-robot/cse481/team2/src/createmate/createmate/stretch.urdf'
     self.chain = ikpy.chain.Chain.from_urdf_file(self.urdf_path) # joints chained together
+
+    # create client to request change to position mode
+    self.position_mode_client = self.create_client(Trigger, '/switch_to_position_mode', callback_group=ac_cbs)
+    pos_server_reached = self.position_mode_client.wait_for_server(timeout_sec=60.0)
+    if not pos_server_reached:
+        self.get_logger().error('Unable to connect to position mode server. Timeout exceeded.')
 
     # subscribe to current joint states and store
     self.joint_states = JointState()
@@ -163,8 +173,10 @@ class PickupMarker(Node):
     goal_point = JointTrajectoryPoint()
     duration_goal = Duration(seconds=10).to_msg()
     goal_point.time_from_start = duration_goal
-    # always have wrist pitch as straight out
-    goal_point.positions[4] == 0.0
+
+    # default pose to send is curr pose, with grippper straight out
+    goal_point.positions = [0.0, self.curr_pose[3], 4* self.curr_pose[5], 0.0, 0.0]
+
     # if grasping or picking up, close gripper
     if self.state.value >= PickupSeq.GRASP.value :
       self.get_logger().info('gripper will be closed...')
@@ -173,6 +185,7 @@ class PickupMarker(Node):
       self.get_logger().info('gripper will be open...')
       goal_point.positions[3] = -0.12
 
+    # adjust pose w. appropriate q goal to move one limb at a time
     if self.state == PickupSeq.BASE: # only moving base at the beginning
       self.get_logger().info('only moving base....')
       goal_point.positions[0] = q[1]
@@ -195,8 +208,7 @@ class PickupMarker(Node):
     #TODO: if it fails, return false
     return True
 
-
-  def pickup_marker_cb(self, request, response):
+  def pickup_marker(self, marker_name):
     self.state = PickupSeq.BASE
     target_done = False
 
@@ -208,7 +220,7 @@ class PickupMarker(Node):
         tf_found = False
         while not tf_found:
           self.get_logger().info(f'Attempting tf calculation...')
-          target = self.transform_to_base_frame(request.markerid)
+          target = self.transform_to_base_frame(marker_name)
           if target is not None:
             tf_found = True
           else:
@@ -222,6 +234,7 @@ class PickupMarker(Node):
         q = self.get_q_soln(target, q_init)
 
       # move robot base
+      self.curr_pose = q_init
       self.get_logger().info(f'the solution is: {q}, will now attempt to move to the configuration for manipulate {self.state.name} phase')
       success = self.move_to_configuration(q)
       if success and self.state.value < PickupSeq.PICKUP.value:
@@ -233,6 +246,39 @@ class PickupMarker(Node):
       else:
         target_done == True
     self.get_logger().info('target goal reached!')
+  
+  def move_to_default_pose(self, pose_name):
+    goal_pose = self.poses.get(pose_name)
+    joints = goal_pose.get('joints') #dictionary 
+
+    trajectory_goal = FollowJointTrajectory.Goal()
+    trajectory_goal.trajectory.header.frame_id = goal_pose.get('frame_id')
+    trajectory_goal.trajectory.joint_names = joints.keys()
+
+    # create trajectory point
+    goal_point = JointTrajectoryPoint()
+    goal_point.positions = list(joints.values())
+    duration_goal = Duration(seconds=20).to_msg()
+    goal_point.time_from_start = duration_goal
+    trajectory_goal.trajectory.points = [goal_point]
+    self.get_logger().info(f'trajectory goal sent:{trajectory_goal}')
+    # send joint trajectory
+    trajectory_res = self.trajectory_client.send_goal(trajectory_goal)
+    # TODO: maybe figure out what to do if this fails lol... and what that return looks like
+    self.get_logger().info(f'trajectory goal result: {trajectory_res}')
+    #TODO: if it fails, return false
+    return True
+
+  def pickup_marker_cb(self, request, response):
+    self.get_logger().info('asking to switch to position mode')
+    position_req = Trigger.Request()
+    res = self.position_mode_client.call(position_req)
+    self.get_logger.info(f'position mode service result: {res}')
+    self.position_mode_client()
+    if request.pose_name == 'grab_tool':
+      self.pickup_marker(request.markerid)
+    else:
+      self.move_to_default_pose(request.pose_name)
     response.success = True #TODO, maybe if no progress after multiple loops, then send fail
     return response
 
