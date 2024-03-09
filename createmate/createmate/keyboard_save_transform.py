@@ -10,16 +10,11 @@ class KeyboardInput(Node):
         super().__init__('keyboard_input')
         self.publisher = self.create_publisher(RecordPose, 'pose_record_req', 10)
 
-    def publish_message(self, data):
-        msg = String()
-        msg.data = data
-        self.publisher.publish(msg)
-
     def on_keyboard_press(self, key):
         if key == keyboard.Key.esc:
             msg = RecordPose()
             msg.command = 'quit'
-            self.publish_message(msg)
+            self.publisher.publish(msg)
             self.get_logger().info('quit message sent...')
             self.destroy_node()
             rclpy.shutdown()
@@ -28,13 +23,13 @@ class KeyboardInput(Node):
             msg = RecordPose()
             msg.command = 'record_pose'
             msg.name = input('type pose name:')
-            frame = input('Choose a frame\n1: map\n2: target_object1')
+            frame = int(input('Choose a frame\n1: map\n2: target_object1\n'))
 
             while frame != 1 or frame != 2:
                 frame=input('incorrect input, try again: ')
 
             msg.frame = frame
-            self.publish_message(msg)
+            self.publisher.publish(msg)
 
             self.get_logger().info('record_pose message sent...')
 
