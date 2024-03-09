@@ -28,7 +28,7 @@ class KeyboardInput(Node):
             while frame != 1 and frame != 2:
                 frame=input('incorrect input, try again: ')
 
-            msg.frame = frame
+            msg.frame = str(frame)
             self.publisher.publish(msg)
 
             self.get_logger().info('record_pose message sent...')
