@@ -30,12 +30,12 @@ class KeyboardInput(Node):
             msg.name = input('type pose name:')
             frame = input('Choose a frame\n1: map\n2: target_object1')
 
-            while frame not 1 or frame not 1:
+            while frame != 1 or frame != 2:
                 frame=input('incorrect input, try again: ')
 
             msg.frame = frame
             self.publish_message(msg)
-        
+
             self.get_logger().info('record_pose message sent...')
 
     def get_keyboard_input(self):

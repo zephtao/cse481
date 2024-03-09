@@ -59,7 +59,7 @@ class PickupMarker(Node):
 
     # joint names whose positions are included in the message to the action server:
     self.joint_names = ['translate_mobile_base', 'joint_lift', 'wrist_extension','gripper_aperture', 'joint_wrist_pitch']
-    
+
     # read all the aruco -> grasp center transforms recorded
     # load poses
     self.pose_filepath = '/home/hello-robot/cse481/zephyr_ws/save_poses.json'
@@ -72,7 +72,7 @@ class PickupMarker(Node):
 
     # state of node
     self.state = PickupSeq.READY
-    
+
     #TODO: uncomment for testing w.o actually initiating marker pickup!
     #self.sleepy_action_client = ActionClient(self, Sleepy, 'sleepy_act', callback_group=ac_cbs)
 
@@ -103,7 +103,7 @@ class PickupMarker(Node):
       self.get_logger().info(f'Could not transform point from {rec_pt.header.frame_id} to base_link: {ex}')
       return None
 
-  def get_q_init(self): 
+  def get_q_init(self):
     '''
       returns current configuration of joints
     '''
@@ -132,21 +132,21 @@ class PickupMarker(Node):
 
     # if on base phase, check whether the base is already aligned or needs to be moved
     # base alignment will be be at a certain threshold #TODO: needs to be tested
-    if self.state == PickupSeq.BASE && abs(q_soln[1]) < 0.01 :
+    if self.state == PickupSeq.BASE and abs(q_soln[1]) < 0.01 :
       self.get_logger().info(f'The base translation solution is {q_sol[1]}, so the base is aligned! moving onto arm lift phase')
       self.state == PickupSeq.LIFT
-    elif self.state == PickupSeq.BASE
+    elif self.state == PickupSeq.BASE:
       self.get_logger().info(f'the base is not yet aligned... only returning base translation manipulation goal')
       q_init[1] = q_soln[1]
       q_soln = q_init
     return q_soln
 
   def move_to_configuration(self, q):
-    ''' 
+    '''
         accepts chain link positions in terms of base_link and move robot to that configuration
         q: chain link positions
         base: boolean indicating whether only the base is being moved
-        gripper_open: bolean indicating whether the gripper should be open 
+        gripper_open: bolean indicating whether the gripper should be open
             for this step (true if base_only)
     '''
     # ['translate_mobile_base', 'joint_lift', 'wrist_extension','gripper_aperture', 'joint_wrist_pitch']
@@ -197,9 +197,9 @@ class PickupMarker(Node):
     self.state = PickupSeq.BASE
     target_done = False
 
-    # loop through these steps until grasping marker and picked up 
+    # loop through these steps until grasping marker and picked up
     while not target_done:
-      # only recalculate ik when dealing with base movement, the last calculated 
+      # only recalculate ik when dealing with base movement, the last calculated
       # q_soln when base is aligned will be used for arm movements (lift, extend)
       if self.state == PickupSeq.BASE:
         tf_found = false
@@ -217,11 +217,11 @@ class PickupMarker(Node):
         self.get_logger().info(f'Current joint positions: {q_init}')
         self.get_logger().info('Solving Inverse Kinematics for goal point')
         q = self.get_q_soln(target, q_init)
-      
+
       # move robot base
       self.get_logger().info(f'the solution is: {q}, will now attempt to move to the configuration for manipulate {self.state.name} phase')
       success = self.move_to_configuration(q)
-      if success && self.state.value < PickupSeq.PICKUP.value:
+      if success and self.state.value < PickupSeq.PICKUP.value:
         # move onto the next pickup phase
         self.state == PickupSeq(self.state + 1)
         self.get_logger().info('moved onto next phase')
@@ -236,7 +236,7 @@ class PickupMarker(Node):
 def main():
   rclpy.init()
   executor = MultiThreadedExecutor()
-  
+
   marker_pickup_node = PickupMarker()
   executor.add_node(marker_pickup_node)
   executor.spin()

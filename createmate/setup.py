@@ -28,8 +28,9 @@ setup(
             'nav2markers=createmate.navigate_to_markers:main',
             'pickupmarker=createmate.pickup_marker:main',
             'sleepyaction=createmate.sleepy_action_server:main',
-            'poselistener=createmate.pose_listener:main'
-            'navigatorsrv=createmate.navigator:main'
+            'poselistener=createmate.pose_listener:main',
+            'navigatorsrv=createmate.navigator:main',
+            'coordinator=createmate.coordinator:main'
         ],
     },
 )
