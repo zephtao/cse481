@@ -42,7 +42,7 @@ class CoordinatorActionServer(Node):
     super().__init__('coordinator')
     self.get_logger().info('starting up coordinator node')
     # startup robot
-    self.state = CoreState.ACCEPTING_DRAW_REQS
+    self.state = CoreState.STARTUP
 
     self.tool_in_grip = Tool.TOOL1 #TODO: assumes starting off with marker in hand rn!
 
@@ -62,16 +62,16 @@ class CoordinatorActionServer(Node):
     home_msg: /std_msgs/Bool
     '''
     self.get_logger().info(f'Received robot homed topic message: {home_msg}')
-    if not home_msg and self.state == CoreState.STARTUP: #state check for redundancy
+    if not home_msg.data and self.state == CoreState.STARTUP: #state check for redundancy
       self.get_logger().info('Robot not yet homed, contacting home_the_robot server to initiate homing sequence')
 
       # CONNECT TO HOMING SERVICE
       self.home_the_robot_service = self.create_client(Trigger, '/home_the_robot')
 
-      while not self.home_the_robot_service.wait_for_service(timeout_sec=2.0):
+      while not self.home_the_robot_service.wait_for_service(timeout_sec=10.0):
         self.get_logger().info("Waiting on '/home_the_robot' service...")
 
-      self.get_logger().info('Node ' + self.node_name + ' connected to /home_the_robot service.')
+      self.get_logger().info('Node connected to /home_the_robot service.')
 
       # REQUEST HOMING
       trigger_req = Trigger.Request()
@@ -213,7 +213,7 @@ class CoordinatorActionServer(Node):
     self.get_logger().info('setting up service clients')
 
     # pickup marker service
-    self.pickup_tool_client = self.create_client(PickupDrawTool, 'move_to_preset')
+    self.pickup_tool_client = self.create_client(GoalPosition, 'move_to_preset')
     while not self.pickup_tool_client.wait_for_service(timeout_sec=1.0):
       self.get_logger().info('service not available, waiting again...')
 

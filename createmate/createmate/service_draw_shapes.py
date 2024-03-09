@@ -187,8 +187,8 @@ class DrawService(Node):
     # func for shape messages
     def draw_shape_callback(self):
         if self.shape == 'c':
-           draw_circle_trajectory(self, 50) 
+           self.draw_circle_trajectory(self, 50) 
         elif self.shape == 't':
-            draw_triangle_position(0.15, 0.15)
+            self.draw_triangle_position(0.15, 0.15)
         else:
-            draw_square_trajectory(0.15)
+            self.draw_square_trajectory(0.15)
