@@ -192,11 +192,12 @@ class DrawService(Node):
         self._get_result_future = self.trajectory_client.send_goal(trajectory_goal)   
 
     # func for shape messages
-    def draw_shape_callback(self, msg):
-        if msg.shape == 'c':
+    def draw_shape_callback(self, request, response):
+        if request.shape == 'c':
             self.draw_circle_trajectory(50) 
-        elif msg.shape == 't':
+        elif request.shape == 't':
             self.draw_triangle_position(0.15, 0.15)
         else:
             self.draw_square_trajectory(0.15)
-        return 
+        response.shape_drawn = True
+        return response
