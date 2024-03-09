@@ -1,0 +1,6 @@
+string pose_name # grab_tool, setup_draw, or an actual name from the poses file
+string markerid # should match the name of the aruco marker attached to drawing implement or the canvas
+int64 x # coordinates for when sending goal starting point relative to canvas aruco
+int64 y 
+---
+bool success

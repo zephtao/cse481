@@ -5,7 +5,7 @@ import time
 
 import ikpy.chain
 from ikpy.utils.geometry import rpy_matrix
-from createmate_interfaces.srv import PickupDrawTool
+from createmate_interfaces.srv import GoalPosition
 from createmate_interfaces.action import Sleepy
 from enum import Enum
 from geometry_msgs.msg import Transform
@@ -31,7 +31,9 @@ class PickupSeq(Enum):
   LIFT=3,
   EXTEND=4,
   GRASP=5,
-  PICKUP=6
+  PICKUP=6,
+  DRAWSTART=7,
+  DRAWSTARTBASE=8
 
 '''
 I'M SORRY THIS A MISLEADING NAME. IT ALSO DOES PRESET POSES
@@ -41,7 +43,7 @@ class PickupMarker(Node):
   'ros code to pickup a marker'
   def __init__(self):
     super().__init__('marker_pickup')
-    self.srv = self.create_service(PickupDrawTool, 'pickup_draw_tool', self.pickup_marker_cb)
+    self.srv = self.create_service(GoalPosition, 'move_to_preset', self.pickup_marker_cb)
 
     # callbackgroup for action server responses (avoid deadlock w/ the node's service callback)
     ac_cbs = ReentrantCallbackGroup()
@@ -96,24 +98,19 @@ class PickupMarker(Node):
     '''
     self.joint_states = joint_states
 
-  def transform_to_base_frame(self, frame_id):
+  def transform_to_base_frame(self, point_stamped):
     '''
         Converts point (in aruco/target_object1 frame) to base_link frame
-        record_tf: Transform from aruco_marker to grasp_center
+        point_stamped
     '''
-    marker_grasp_info = self.poses['pickup_new_marker']
-    position = marker_grasp_info.vector
-    rec_pt = PointStamped(point=Point(x=position.x, y=position.y, z=position.z))
-    rec_pt.header.frame_id = frame_id
-
     try:
       # obtain point in terms of base_link
-      transformed_point = self.tf_buffer.transform(rec_pt, 'base_link')
-      self.get_logger().info(f'{rec_pt.point} ({rec_pt.header.frame_id} frame) -> {transformed_point} (base_link frame)')
+      transformed_point = self.tf_buffer.transform(point_stamped, 'base_link')
+      self.get_logger().info(f'{point_stamped.point} ({point_stamped.header.frame_id} frame) -> {transformed_point} (base_link frame)')
       res = [transformed_point.point.x, transformed_point.point.y, transformed_point.point.z]
       return res
     except TransformException as ex:
-      self.get_logger().info(f'Could not transform point from {rec_pt.header.frame_id} to base_link: {ex}')
+      self.get_logger().info(f'Could not transform point from {point_stamped.header.frame_id} to base_link: {ex}')
       return None
 
   def get_q_init(self):
@@ -174,30 +171,37 @@ class PickupMarker(Node):
     duration_goal = Duration(seconds=10).to_msg()
     goal_point.time_from_start = duration_goal
 
-    # default pose to send is curr pose, with grippper straight out
-    goal_point.positions = [0.0, self.curr_pose[3], 4* self.curr_pose[5], 0.0, 0.0]
+    if self.state == PickupSeq.DRAWSTART:
+      trajectory_goal.trajectory.joint_names = ['wrist_extension', 'joint_lift']
+      goal_point.positions = [4*q[5], q[3]]
+    elif self.state == PickupSeq.DRAWSTARTBASE:
+      trajectory_goal.trajectory.joint_names = ['translate_mobile_base']
+      goal_point.positions = [q[1]]
+    else:
+      # default pose to send is curr pose, with grippper straight out
+      goal_point.positions = [0.0, self.curr_pose[3], 4* self.curr_pose[5], 0.0, 0.0]
 
-    # if grasping or picking up, close gripper
-    if self.state.value >= PickupSeq.GRASP.value :
-      self.get_logger().info('gripper will be closed...')
-      goal_point.positions[3] =  0.08
-    else: # otherwise, keep gripper open
-      self.get_logger().info('gripper will be open...')
-      goal_point.positions[3] = -0.12
+      # if grasping or picking up, close gripper
+      if self.state.value >= PickupSeq.GRASP.value :
+        self.get_logger().info('gripper will be closed...')
+        goal_point.positions[3] =  0.08
+      else: # otherwise, keep gripper open
+        self.get_logger().info('gripper will be open...')
+        goal_point.positions[3] = -0.12
 
-    # adjust pose w. appropriate q goal to move one limb at a time
-    if self.state == PickupSeq.BASE: # only moving base at the beginning
-      self.get_logger().info('only moving base....')
-      goal_point.positions[0] = q[1]
-    elif self.state == PickupSeq.LIFT:
-      self.get_logger().info('lifting arm...')
-      goal_point.positions[1] = q[3]
-    elif self.state == PickupSeq.EXTEND:
-      self.get_logger().info('extending arm...')
-      goal_point.positions[2] = 4*q[5]
-    elif self.state == PickupSeq.PICKUP:
-      self.get_logger().info('picking up the marker')
-      goal_point.positions[1] = 1 # HARDCODED LIFT
+      # adjust pose w. appropriate q goal to move one limb at a time
+      if self.state == PickupSeq.BASE: # only moving base at the beginning
+        self.get_logger().info('only moving base....')
+        goal_point.positions[0] = q[1]
+      elif self.state == PickupSeq.LIFT:
+        self.get_logger().info('lifting arm...')
+        goal_point.positions[1] = q[3]
+      elif self.state == PickupSeq.EXTEND:
+        self.get_logger().info('extending arm...')
+        goal_point.positions[2] = 4*q[5]
+      elif self.state == PickupSeq.PICKUP:
+        self.get_logger().info('picking up the marker')
+        goal_point.positions[1] = 1 # HARDCODED LIFT
 
     trajectory_goal.trajectory.points = [goal_point]
     self.get_logger().info(f'trajectory goal sent:{trajectory_goal}')
@@ -212,6 +216,12 @@ class PickupMarker(Node):
     self.state = PickupSeq.BASE
     target_done = False
 
+    # get recorded pose
+    marker_grasp_info = self.poses['grab_tool']
+    position = marker_grasp_info.vector
+    rec_pt = PointStamped(point=Point(x=position.x, y=position.y, z=position.z))
+    rec_pt.header.frame_id = marker_name
+
     # loop through these steps until grasping marker and picked up
     while not target_done:
       # only recalculate ik when dealing with base movement, the last calculated
@@ -220,7 +230,7 @@ class PickupMarker(Node):
         tf_found = False
         while not tf_found:
           self.get_logger().info(f'Attempting tf calculation...')
-          target = self.transform_to_base_frame(marker_name)
+          target = self.transform_to_base_frame(rec_pt)
           if target is not None:
             tf_found = True
           else:
@@ -245,6 +255,8 @@ class PickupMarker(Node):
         self.get_logger().info('did not succeed, will try again')
       else:
         target_done == True
+    # move to default marker holding pose
+    self.move_to_default_pose('stow_marker')
     self.get_logger().info('target goal reached!')
   
   def move_to_default_pose(self, pose_name):
@@ -268,6 +280,29 @@ class PickupMarker(Node):
     self.get_logger().info(f'trajectory goal result: {trajectory_res}')
     #TODO: if it fails, return false
     return True
+  
+  def to_marker_start(self, request):
+    '''
+    request of type GoalPosition.Request
+    '''
+    self.state = PickupSeq.DRAWSTART
+    canvas_pt = PointStamped(point=Point(x=request.x, y=request.y, z=request.z))
+    canvas_pt.header.frame_id = request.markerid
+    target = self.transform_to_base_frame(canvas_pt)
+    self.get_logger().info(f'target point for wrist center: {target}')
+    # solve
+    self.get_logger().info('Retrieving current joint positions...')
+    q_init = self.get_q_init() # shape (15,)
+    self.get_logger().info(f'Current joint positions: {q_init}')
+    self.get_logger().info('Solving Inverse Kinematics for goal point')
+    q = self.get_q_soln(target, q_init)
+
+    # move arm lift/extend
+    self.get_logger().info(f'the solution is: {q}, will now attempt to move to the configuration for manipulate {self.state.name} phase')
+    self.move_to_configuration(q)
+    self.get_logger().info('will now move base forward to contact paper')
+    self.state = PickupSeq.DRAWSTARTBASE
+    self.move_to_configuration(q)
 
   def pickup_marker_cb(self, request, response):
     # switch to position mode just in case
@@ -279,6 +314,8 @@ class PickupMarker(Node):
     # move to desired poses
     if request.pose_name == 'grab_tool':
       self.pickup_marker(request.markerid)
+    elif request.pose_name == 'setup_draw':
+      self.to_marker_start(request)
     else:
       self.move_to_default_pose(request.pose_name)
     response.success = True #TODO, maybe if no progress after multiple loops, then send fail

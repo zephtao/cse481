@@ -1,7 +1,7 @@
 import rclpy
 import createmate_interfaces.action
 from createmate_interfaces.msg import DrawShapes, Shape, ShapesProgression
-from createmate_interfaces.srv import Navigate, PickupDrawTool
+from createmate_interfaces.srv import Navigate, GoalPosition
 from enum import Enum
 from rclpy.action import ActionServer, ActionClient, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -99,6 +99,22 @@ class CoordinatorActionServer(Node):
       self.get_logger().info('Not currently accepting drawing requests. Rejecting the following UI request: {draw_req}')
       return GoalResponse.REJECT
   
+  def to_shape_start(self, name, coor):
+    # calc start coords
+    if name == 'triangle':
+      side_len = 0.15
+      height = 0.15
+      x = coor - (side_len / 2)
+      y = coor - (height / 2)
+    toShapeStartReq = GoalPosition.Request()
+    toShapeStartReq.markerid = 'target_object1'
+    toShapeStartReq.pose_name = 'setup_draw'
+    toShapeStartReq.x = x
+    toShapeStartReq.y = y
+    self.get_logger().info('attempting to line up marker for desired start')
+    res = self.pickup_tool_client.call(toShapeStartReq)
+    self.get_logger().info(f'marker at start point?!: {res}')
+
   def get_correct_tool(self, req_tool):
     if req_tool != self.tool_in_grip:
       # navigate to the marker table
@@ -108,8 +124,9 @@ class CoordinatorActionServer(Node):
       self.get_logger().info('result of createmate navigation service: {res}')
 
       # pickup the marker
-      pickupToolReq = PickupDrawTool.Request()
+      pickupToolReq = GoalPosition.Request()
       pickupToolReq.markerid = req_tool
+      pickupToolReq.pose_name = 'grab_tool'
       res = self.pickup_tool_client.call(pickupToolReq)
       self.get_logger().info('result of createmate pickup tool service: {res}')
       self.tool_in_grip = req_tool
@@ -119,6 +136,9 @@ class CoordinatorActionServer(Node):
       navSrvReq.target_map_pose = 'face_canvas'
       res = self.nav_client.call(navSrvReq)
       self.get_logger().info('result of createmate navigation service: {res}')
+    
+    # move to canvas position
+      
 
   def execute_user_draw_shapes(self, goal_handle):
     '''
@@ -187,7 +207,7 @@ class CoordinatorActionServer(Node):
     self.get_logger().info('setting up service clients')
 
     # pickup marker service
-    self.pickup_tool_client = self.create_client(PickupDrawTool, 'pickup_draw_tool')
+    self.pickup_tool_client = self.create_client(PickupDrawTool, 'move_to_preset')
     while not self.pickup_tool_client.wait_for_service(timeout_sec=1.0):
       self.get_logger().info('service not available, waiting again...')
 
