@@ -123,6 +123,8 @@ function App() {
         name: 'user_draw_shapes',
         actionType: 'createmate_interfaces/action/DrawShapes'
       }));
+
+      console.log("finished setting action client.")
       
     });
   }, [])
@@ -148,14 +150,15 @@ function App() {
     });
 
     const actionGoal = new ROSLIB.ActionGoal({shape_goals: drawShapesMsg});
+
     actionClient.createClient(actionGoal);
 
-    actionGoal.on('feedback', function(feedback) {
-      console.log('feedback: ' + feedback.shape_progress.shape_num);
+    actionClient.on("feedback", function (feedback) {
+      console.log("RECEIVED FEEDBACK:", feedback)
     });
 
-    actionGoal.on('result', function(result) {
-      console.log('result: ' + result.total_success);
+    actionClient.on("result", function (result) {
+      console.log("RECEIVED RESULT:", result)
     });
   }
   ////////////////////////////// SEND SHAPE INFO TO ROS //////////////////////////////
