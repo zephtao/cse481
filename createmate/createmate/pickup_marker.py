@@ -1,3 +1,5 @@
+import json
+import os
 import rclpy
 import time
 
@@ -5,6 +7,7 @@ import ikpy.chain
 from ikpy.utils.geometry import rpy_matrix
 from createmate_interfaces.srv import PickupDrawTool
 from createmate_interfaces.action import Sleepy
+from enum import Enum
 from geometry_msgs.msg import Transform
 from geometry_msgs.msg import Vector3
 from rclpy.action import ActionClient
@@ -13,6 +16,7 @@ from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.time import Time
+from tf2_geometry_msgs import PointStamped, Point
 from tf2_ros.buffer import Buffer
 from tf2_ros import TransformException
 from tf2_ros.transform_listener import TransformListener
@@ -43,7 +47,7 @@ class PickupMarker(Node):
     self.tf_listener = TransformListener(self.tf_buffer, self)
 
     # robot body vars
-    self.urdf_path = '/home/hello-robot/cse481/zephyr_ws/src/createmate/createmate/stretch.urdf'
+    self.urdf_path = '/home/hello-robot/cse481/zephyr_ws/src/createmate/createmate/stretch.urdf''
     self.chain = ikpy.chain.Chain.from_urdf_file(self.urdf_path) # joints chained together
 
     # subscribe to current joint states and store
@@ -55,14 +59,13 @@ class PickupMarker(Node):
     server_reached = self.trajectory_client.wait_for_server(timeout_sec=60.0)
     if not server_reached:
         self.get_logger().error('Unable to connect to arm action server. Timeout exceeded.')
-        sys.exit()
 
     # joint names whose positions are included in the message to the action server:
     self.joint_names = ['translate_mobile_base', 'joint_lift', 'wrist_extension','gripper_aperture', 'joint_wrist_pitch']
 
     # read all the aruco -> grasp center transforms recorded
     # load poses
-    self.pose_filepath = '/home/hello-robot/cse481/zephyr_ws/save_poses.json'
+    self.pose_filepath = '/home/hello-robot/cse481/team2/save_poses.json'
     if os.path.isfile(self.pose_filepath):
       with open(self.pose_filepath, 'r') as pose_file:
         self.poses = json.load(pose_file)
@@ -133,7 +136,7 @@ class PickupMarker(Node):
     # if on base phase, check whether the base is already aligned or needs to be moved
     # base alignment will be be at a certain threshold #TODO: needs to be tested
     if self.state == PickupSeq.BASE and abs(q_soln[1]) < 0.01 :
-      self.get_logger().info(f'The base translation solution is {q_sol[1]}, so the base is aligned! moving onto arm lift phase')
+      self.get_logger().info(f'The base translation solution is {q_soln[1]}, so the base is aligned! moving onto arm lift phase')
       self.state == PickupSeq.LIFT
     elif self.state == PickupSeq.BASE:
       self.get_logger().info(f'the base is not yet aligned... only returning base translation manipulation goal')
@@ -190,7 +193,7 @@ class PickupMarker(Node):
     # TODO: maybe figure out what to do if this fails lol... and what that return looks like
     self.get_logger().info(f'trajectory goal result: {trajectory_res}')
     #TODO: if it fails, return false
-    return true
+    return True
 
 
   def pickup_marker_cb(self, request, response):
@@ -202,7 +205,7 @@ class PickupMarker(Node):
       # only recalculate ik when dealing with base movement, the last calculated
       # q_soln when base is aligned will be used for arm movements (lift, extend)
       if self.state == PickupSeq.BASE:
-        tf_found = false
+        tf_found = False
         while not tf_found:
           self.get_logger().info(f'Attempting tf calculation...')
           target = self.transform_to_base_frame(request.markerid)
