@@ -270,11 +270,13 @@ class PickupMarker(Node):
     return True
 
   def pickup_marker_cb(self, request, response):
+    # switch to position mode just in case
     self.get_logger().info('asking to switch to position mode')
     position_req = Trigger.Request()
     res = self.position_mode_client.call(position_req)
     self.get_logger.info(f'position mode service result: {res}')
-    self.position_mode_client()
+
+    # move to desired poses
     if request.pose_name == 'grab_tool':
       self.pickup_marker(request.markerid)
     else:
