@@ -1,9 +1,12 @@
+import os
+import json
 import rclpy
 
 from createmate_interfaces.srv import Navigate
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseWithCovariance, Pose, PoseStamped
 from geometry_msgs.msg import Point, Quaternion
 from nav2_msgs.action import NavigateToPose
+from rclpy.action import ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
@@ -33,7 +36,7 @@ class Navigate(Node):
   
   def extract_req_pose(self, request):
     #load the pose goal
-    req_pose = self.poses[msg.target_map_pose]
+    req_pose = self.poses[request.target_map_pose]
     req_vector = req_pose['vector']
     req_quaternion = req_pose['quaternion']
 
@@ -52,13 +55,13 @@ class Navigate(Node):
       Callback for the node's service will navigate to chosen map location
     '''
     # check the pose is in the file
-    if msg.target not in self.poses.keys():
-      self.get_logger().info(f'The requested pose, {msg.target}, was not found in the saved pose file')
+    if request.target_map_pose not in self.poses.keys():
+      self.get_logger().info(f'The requested pose, {request.target_map_pose}, was not found in the saved pose file')
       response.success = False
       return response
     
     # extract goal info + prepare message
-    goal_msg = extract_req_pose(request)
+    goal_msg = self.extract_req_pose(request)
 
     # send the pose goal to nav2 stack
     while not self.nav_to_pose_client.wait_for_server(timeout_sec=1.0):
