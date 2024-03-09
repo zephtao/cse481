@@ -9,6 +9,7 @@ class KeyboardInput(Node):
     def __init__(self):
         super().__init__('keyboard_input')
         self.publisher = self.create_publisher(RecordPose, 'pose_record_req', 10)
+        self.frame_choices = {1:"map", 2:"target_object1"}
 
     def on_keyboard_press(self, key):
         if key == keyboard.Key.esc:
@@ -23,12 +24,12 @@ class KeyboardInput(Node):
             msg = RecordPose()
             msg.command = 'record_pose'
             msg.name = input('type pose name:')
-            frame = int(input('Choose a frame\n1: map\n2: target_object1\n'))
+            frame = int(input(f'Choose a frame\n{self.frame_choices}'))
 
-            while frame != 1 and frame != 2:
+            while frame not in self.frame_choices.keys:
                 frame=input('incorrect input, try again: ')
-
-            msg.frame = str(frame)
+            
+            msg.frame = self.frame_choices.get(frame)
             self.publisher.publish(msg)
 
             self.get_logger().info('record_pose message sent...')
