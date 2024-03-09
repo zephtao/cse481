@@ -100,12 +100,15 @@ class CoordinatorActionServer(Node):
       return GoalResponse.REJECT
   
   def to_shape_start(self, name, coor):
+    '''
+     coor (geometry_msg/point) is the middle of the shape
+    '''
     # calc start coords
     if name == 'triangle':
-      side_len = 0.15
+      side_len = 0.15 #TODO hardcoded
       height = 0.15
-      x = coor - (side_len / 2)
-      y = coor - (height / 2)
+      x = coor.x - (side_len / 2)
+      y = coor.y - (height / 2)
     toShapeStartReq = GoalPosition.Request()
     toShapeStartReq.markerid = 'target_object1'
     toShapeStartReq.pose_name = 'setup_draw'
@@ -136,10 +139,7 @@ class CoordinatorActionServer(Node):
       navSrvReq.target_map_pose = 'face_canvas'
       res = self.nav_client.call(navSrvReq)
       self.get_logger().info('result of createmate navigation service: {res}')
-    
-    # move to canvas position
       
-
   def execute_user_draw_shapes(self, goal_handle):
     '''
       Orchestrate user drawing request execution
@@ -159,13 +159,19 @@ class CoordinatorActionServer(Node):
       shapes_feedback.shape_num = i
       shapes_feedback.status = "setup"
       goal_handle.publish_feedback(shapes_feedback)
-      #1: check correct drawing implement being held
+      #1: pickup correct drawing implement
       self.get_correct_tool(ds_goals[i].tool)
 
-      #2 send drawing request 
-      shapes_feedback.status = "init drawing"
+      #2 move to canvas start point
+      shapes_feedback.status = "moving to canvas start point"
       goal_handle.publish_feedback(shapes_feedback)
       shape_goal_msg = ds_goals[i]
+      self.to_shape_start(shape_goal_msg.shape, shape_goal_msg.start_location)
+
+      #3 send drawing request 
+      shapes_feedback.status = "init drawing"
+      goal_handle.publish_feedback(shapes_feedback)
+  
       shape_result = self.robo_shape_action_client.send_goal(shape_goal_msg) #drawing node uses the Shape messages in the DrawShapes messages
       if shape_result == "COMPLETE":
         shapes_feedback.status = "complete" #TODO: add a failure check if drawing node sends failure
