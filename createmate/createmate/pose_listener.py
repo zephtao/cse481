@@ -66,7 +66,7 @@ class PoseListener(Node):
           self.get_logger().info('could not localize robot on map')
           return
       else : # an aruco frame
-        tf = get_gripper_aruco_tf(rec_msg.frame)
+        tf = self.get_gripper_aruco_tf(rec_msg.frame)
         translation = tf.transform.translation
         rotation = tf.transform.rotation
         tf_vector = {'x': translation.x, 'y': translation.y, 'z': translation.z}

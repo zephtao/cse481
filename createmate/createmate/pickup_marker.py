@@ -47,7 +47,7 @@ class PickupMarker(Node):
     self.tf_listener = TransformListener(self.tf_buffer, self)
 
     # robot body vars
-    self.urdf_path = '/home/hello-robot/cse481/zephyr_ws/src/createmate/createmate/stretch.urdf''
+    self.urdf_path = '/home/hello-robot/cse481/team2/src/createmate/createmate/stretch.urdf'
     self.chain = ikpy.chain.Chain.from_urdf_file(self.urdf_path) # joints chained together
 
     # subscribe to current joint states and store
