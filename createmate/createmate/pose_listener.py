@@ -29,7 +29,7 @@ class PoseListener(Node):
     self.map_pose = None
 
     # check if pose file already exists and load previous data
-    self.pose_filepath = '/home/hello-robot/cse481/zephyr_ws/save_poses.json'
+    self.pose_filepath = '/home/hello-robot/cse481/team2/save_poses.json'
     if os.path.isfile(self.pose_filepath):
       with open(self.pose_filepath, 'r') as pose_file:
         self.poses = json.load(pose_file)
