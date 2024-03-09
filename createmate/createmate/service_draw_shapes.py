@@ -16,8 +16,7 @@ from rclpy.node import Node
 from control_msgs.action import FollowJointTrajectory
 from trajectory_msgs.msg import JointTrajectoryPoint
 from createmate_interfaces.srv import DrawShape
-from createmate_interfaces.msg import Shape
-# TODO: add import for Shape message
+from createmate_interfaces.msg import Shape
 from enum import Enum
 from sensor_msgs.msg import JointState
 import ikpy.chain
@@ -26,6 +25,8 @@ import rclpy
 from rclpy.time import Time
 from rclpy.duration import Duration
 from rclpy.action import ActionClient
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 from ros2_numpy import numpify
 from geometry_msgs.msg import Transform
 from tf2_ros import TransformException
@@ -41,7 +42,12 @@ import re  # regular expression
 class DrawService(Node):
     def __init__(self):
         super().__init__('draw_service')
-        self.srv = self.create_service(DrawShape, 'draw_shape', self.draw_shape_callback)
+
+        # create a separate reentrant callback group so blocking within the shape handling (bc of waiting for actions), 
+        # does not block other callbacks
+        self.exec_cb_group = ReentrantCallbackGroup()
+
+        self.srv = self.create_service(DrawShape, 'draw_shape', self.draw_shape_callback, callback_group = self.exec_cb_group)
 
         # shape msg request
         self.shape = DrawShape.shape
@@ -185,10 +191,13 @@ class DrawService(Node):
         self._get_result_future = self.trajectory_client.send_goal(trajectory_goal)   
 
     # func for shape messages
-    def draw_shape_callback(self):
-        if self.shape == 'c':
-           self.draw_circle_trajectory(self, 50) 
-        elif self.shape == 't':
+    def draw_shape_callback(self, request, response):
+        if request.shape == 'c':
+            self.draw_circle_trajectory(50) 
+        elif request.shape == 't':
             self.draw_triangle_position(0.15, 0.15)
         else:
             self.draw_square_trajectory(0.15)
+        response.shape_drawn = True
+        return response
+
