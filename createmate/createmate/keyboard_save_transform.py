@@ -25,7 +25,7 @@ class KeyboardInput(Node):
             msg.name = input('type pose name:')
             frame = int(input('Choose a frame\n1: map\n2: target_object1\n'))
 
-            while frame != 1 or frame != 2:
+            while frame != 1 and frame != 2:
                 frame=input('incorrect input, try again: ')
 
             msg.frame = frame
