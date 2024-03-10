@@ -1,6 +1,7 @@
 import os
 import json
 import rclpy
+import time
 
 from createmate_interfaces.srv import Navigate
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseWithCovariance, Pose, PoseStamped
@@ -12,7 +13,7 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.time import Time
 
-class Navigate(Node):
+class Navigator(Node):
   def __init__(self):
     super().__init__('draw_nav')
     # callbackgroup for action server responses (avoid deadlock w/ the node's service callback)
@@ -83,24 +84,23 @@ class Navigate(Node):
     self.initial_pose_set = True
 
     # destroy sub so we don't redefine by accident
-    self.init_pose_sub.destroy()
 
   def wait_for_init_pose(self):
     while not self.initial_pose_set:
       rclpy.spin_once(self, timeout_sec=0.5)
-
     self.get_logger().info(f'received the initial start pose! Will now start nav2_preset_map_pose service...')
      # create service
     self.srv = self.create_service(Navigate, 'nav2_preset_map_pose', self.nav2_preset_map_pose)
-    self.get_logger().into('service created')
+    self.get_logger().info('service created')
 
 def main():
   rclpy.init()
-  draw_nav = Navigate()
+  draw_nav = Navigator()
 
   # first, wait for initial pose to be set
   print('Send an initial pose estimate through the /setInitialPose topic (can be done on rviz)')
   draw_nav.wait_for_init_pose()
+  draw_nav.destroy_subscription(draw_nav.init_pose_sub)
 
   # switch to a multithreaded executor to handle callbacks dealing
   # with coordinator navigation requests

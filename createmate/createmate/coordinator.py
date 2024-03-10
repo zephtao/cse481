@@ -54,7 +54,7 @@ class CoordinatorActionServer(Node):
 
     # home robot to start
     # borrow use of callback group since we are calling a service inside its callback
-    #self.home_sub = self.create_subscription(Bool, '/is_homed', self.robot_home_check, 1, callback_group=self.ui_exec_callback_group)
+    self.home_sub = self.create_subscription(Bool, '/is_homed', self.robot_home_check, 1, callback_group=self.ui_exec_callback_group)
     # REMAINING FIELDS INITIALIZED IN RUN_CONTROLLER
     
   def robot_home_check(self, home_msg):
@@ -87,7 +87,7 @@ class CoordinatorActionServer(Node):
     self.state = CoreState.ACCEPTING_DRAW_REQS
     
     # destroy subscription so we don't deal with homing anymore
-    self.home_sub.destroy()
+    self.destroy_subscription(self.home_sub)
 
   def handle_ui_draw_reqs(self, draw_reqs):
     '''

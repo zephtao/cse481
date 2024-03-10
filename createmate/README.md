@@ -104,3 +104,22 @@ stretch_driver node info: We have access to all the following topics/services/ac
 - face_marker_table (location map)
 - face_canvas (location map)
 - draw_ready
+
+# current start commands
+ros2 launch stretch_nav2 navigation.launch.py map:=/home/hello-robot/cse481/map_capstone_room.yaml
+ros2 launch stretch_core d435i_low_resolution.launch.py 
+ros2 launch stretch_core stretch_aruco.launch.py
+
+in /cse481/team2 (for each ros2 node run the following commands in sep terminals):
+  colcon build
+  source install/setup.bash
+
+  -ros2 run createmate coordinator
+  -ros2 run createmate posemanipulator
+  - ros2 run createmate navigatorsrv
+
+
+
+# send commands to draw service
+ros2 service call /draw_shape createmate_interfaces/srv/DrawShape '{shape: {shape: 'c'}}'
+^ 'c' is circle, switch for other shapes
