@@ -103,3 +103,4 @@ stretch_driver node info: We have access to all the following topics/services/ac
 - grab_tool (tf aruco)
 - face_marker_table (location map)
 - face_canvas (location map)
+- draw_ready

@@ -34,7 +34,8 @@ class PoseListener(Node):
     self.join_sub = self.create_subscription(JointState, '/stretch/joint_states', self.joint_states_callback, 1)
 
     # check if pose file already exists and load previous data
-    self.pose_filepath = '/home/hello-robot/cse481/team2/save_poses.json'
+    # RENAME TO WITHOUT INTERMEDIATE TO PROTECT FROM OVERWRITING
+    self.pose_filepath = '/home/hello-robot/cse481/team2/save_poses_intermediate.json'
     if os.path.isfile(self.pose_filepath):
       with open(self.pose_filepath, 'r') as pose_file:
         self.poses = json.load(pose_file)
