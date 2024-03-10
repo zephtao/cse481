@@ -1,0 +1,94 @@
+{
+    " face_marker_table": {
+      "type": "location",
+      "frame_id": "map",
+      "child_frame_id": "",
+      "vector": {
+        "x": 0.7573144364290219,
+        "y": 0.8463919571090447,
+        "z": 0.0
+      },
+      "quaternion": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": -0.9323029945223881,
+        "w": 0.3616782083628873
+      }
+    },
+    " grab_tool": {
+      "type": "transform",
+      "frame_id": "target_object1",
+      "child_frame_id": "link_grasp_center",
+      "vector": {
+        "x": -0.5789926244299399,
+        "y": -0.024170052674383546,
+        "z": 1.0137460754005552
+      },
+      "quaternion": {
+        "x": 0.015533711261991275,
+        "y": 0.31525389992364455,
+        "z": 0.007639361345370136,
+        "w": 0.9488494730754697
+      }
+    },
+    " face_canvas": {
+      "type": "location",
+      "frame_id": "map",
+      "child_frame_id": "",
+      "vector": {
+        "x": 1.5099933606802918,
+        "y": 1.9902762731087191,
+        "z": 0.0
+      },
+      "quaternion": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.9356263330165365,
+        "w": 0.3529920182752424
+      }
+    },
+    " canvas_align": {
+      "type": "transform",
+      "frame_id": "target_object1",
+      "child_frame_id": "link_grasp_center",
+      "vector": {
+        "x": -0.5241815614487411,
+        "y": -0.3230770637688565,
+        "z": 0.5968429900404324
+      },
+      "quaternion": {
+        "x": -0.49226684377273683,
+        "y": 0.5440897069121118,
+        "z": -0.4734875397297978,
+        "w": 0.4872876923080894
+      }
+    },
+    "draw_ready": {
+      "type": "position",
+      "frame_id": "base_link",
+      "child_frame_id": "",
+      "joints": {
+        "joint_lift": 0.8383495127156554,
+        "wrist_extension": 2.1547510815413306e-05,
+        "joint_head_pan": -0.15105127841809646,
+        "joint_head_tilt": 0.29151787456623585,
+        "joint_wrist_yaw": 1.5410115331634506,
+        "joint_wrist_pitch": 0.016873788666742055,
+        "joint_wrist_roll": -0.0015339807878856412
+      }
+    },
+    " stow_marker": {
+      "type": "position",
+      "frame_id": "base_link",
+      "child_frame_id": "",
+      "joints": {
+        "joint_lift": 0.8383528640618081,
+        "wrist_extension": 1.3166704853475505e-05,
+        "joint_head_pan": -1.6804301239400805,
+        "joint_head_tilt": -0.3328123061032201,
+        "joint_wrist_yaw": -0.08117315002561518,
+        "joint_wrist_pitch": 0.015339807878856412,
+        "joint_wrist_roll": -0.0015339807878856412
+      }
+    }
+  }
