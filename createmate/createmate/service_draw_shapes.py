@@ -16,7 +16,7 @@ from rclpy.node import Node
 from control_msgs.action import FollowJointTrajectory
 from trajectory_msgs.msg import JointTrajectoryPoint
 from createmate_interfaces.srv import DrawShape
-from createmate_interfaces.msg import Shape
+from createmate_interfaces.msg import Shape
 from enum import Enum
 from sensor_msgs.msg import JointState
 import ikpy.chain
@@ -50,15 +50,15 @@ class DrawService(Node):
         self.srv = self.create_service(DrawShape, 'draw_shape', self.draw_shape_callback, callback_group = self.exec_cb_group)
 
         # shape msg request
-        self.shape = DrawShape.shape
-        self.start_location = DrawShape.start_location 
+        #self.shape = DrawShape.shape
+        #self.start_location = DrawShape.start_location 
 
         # buffer asynchronously fills with transformations
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
         # robot body vars
-        self.urdf_path = '/home/hello-robot/cse481/zephyr_ws/src/createmate/createmate/stretch.urdf'
+        self.urdf_path = '/home/hello-robot/cse481/team2/src/createmate/createmate/stretch.urdf'
         self.chain = ikpy.chain.Chain.from_urdf_file(self.urdf_path) # joints chained together
 
         # create action client to move joints with stretch core driver
@@ -82,8 +82,8 @@ class DrawService(Node):
     def draw_circle_trajectory(self, n, diameter=0.1):
         # get the arm and lift positions (given center of circle)
         # TODO: for steph: replace self.joint_states with start_location from zephyr
-        arm_pos = self.joint_states[0] + (diameter / 2)
-        lift_pos = self.joint_states[1]
+        arm_pos = self.joint_states.position[0] + (diameter / 2)
+        lift_pos = self.joint_states.position[1]
         
         # sample n points along circle
         t = np.linspace(0, 2*np.pi, n, endpoint=True)
@@ -105,7 +105,9 @@ class DrawService(Node):
             point.time_from_start = duration_point.to_msg()
             
             # add the waypoints to the trajectory
-            points.add(point)
+            points.append(point)
+
+        self.get_logger().info('sending trajectory')
 
         #set up trajectory goal
         trajectory_goal = FollowJointTrajectory.Goal()
@@ -121,8 +123,8 @@ class DrawService(Node):
 
         # get the arm and lift positions (given center of triangle)
         # TODO: not needed to do this here if calling node deals with moving the arm to the correct pos
-        arm_pos = self.joint_states[0] - (side_len / 2)
-        lift_pos = self.joint_states[1] - (height / 2)
+        arm_pos = self.joint_states.position[0] - (side_len / 2)
+        lift_pos = self.joint_states.position[1] - (height / 2)
 
         # Define the triangle's corner points relative to the initial arm and lift positions
         triangle_corners = np.array([
@@ -153,8 +155,8 @@ class DrawService(Node):
 
     def draw_square_trajectory(self, side_len):
         # get the arm and lift positions (given center of square)
-        arm_pos = self.joint_states[0] + (side_len / 2)
-        lift_pos = self.joint_states[1] + (side_len / 2)
+        arm_pos = self.joint_states.position[0] + (side_len / 2)
+        lift_pos = self.joint_states.position[1] + (side_len / 2)
 
         time_dt = 15
 
@@ -178,7 +180,7 @@ class DrawService(Node):
             point.time_from_start = duration_point.to_msg()
             
             # add the waypoints to the trajectory
-            points.add(point)
+            points.append(point)
 
          #set up trajectory goal
         trajectory_goal = FollowJointTrajectory.Goal()
@@ -192,12 +194,28 @@ class DrawService(Node):
 
     # func for shape messages
     def draw_shape_callback(self, request, response):
-        if request.shape == 'c':
+        if request.shape.shape== 'c':
+            self.get_logger().info('received circle request')
             self.draw_circle_trajectory(50) 
-        elif request.shape == 't':
+        elif request.shape.shape == 't':
+            self.get_logger().info('received triangle request')
             self.draw_triangle_position(0.15, 0.15)
         else:
+            self.get_logget().info('received square request')
             self.draw_square_trajectory(0.15)
         response.shape_drawn = True
         return response
 
+def main():
+  rclpy.init()
+  executor = MultiThreadedExecutor()
+
+  draw_node = DrawService()
+  executor.add_node(draw_node)
+  executor.spin()
+
+  rclpy.shutdown()
+
+
+if __name__ == '__main__':
+  main()

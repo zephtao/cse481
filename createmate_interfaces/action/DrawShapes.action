@@ -2,7 +2,7 @@
 DrawShapes shape_goals
 ---
 # Result
-bool total_sucess
+std_msgs/Bool total_success
 ---
 # Feedback
 ShapesProgression shape_progress

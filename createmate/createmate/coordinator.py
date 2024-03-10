@@ -1,7 +1,9 @@
 import rclpy
+import time
 import createmate_interfaces.action
 from createmate_interfaces.msg import DrawShapes, Shape, ShapesProgression
 from createmate_interfaces.srv import Navigate, GoalPosition
+from createmate_interfaces.action import Sleepy
 from enum import Enum
 from rclpy.action import ActionServer, ActionClient, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -42,7 +44,7 @@ class CoordinatorActionServer(Node):
     super().__init__('coordinator')
     self.get_logger().info('starting up coordinator node')
     # startup robot
-    self.state = CoreState.STARTUP
+    self.state = CoreState.ACCEPTING_DRAW_REQS
 
     self.tool_in_grip = Tool.TOOL1 #TODO: assumes starting off with marker in hand rn!
 
@@ -52,7 +54,7 @@ class CoordinatorActionServer(Node):
 
     # home robot to start
     # borrow use of callback group since we are calling a service inside its callback
-    self.home_sub = self.create_subscription(Bool, '/is_homed', self.robot_home_check, 1, callback_group=self.ui_exec_callback_group)
+    #self.home_sub = self.create_subscription(Bool, '/is_homed', self.robot_home_check, 1, callback_group=self.ui_exec_callback_group)
     # REMAINING FIELDS INITIALIZED IN RUN_CONTROLLER
     
   def robot_home_check(self, home_msg):
@@ -149,42 +151,45 @@ class CoordinatorActionServer(Node):
     self.get_logger().info('executing goal: {ds_goals}')
     
     # init feedback
-    shapes_feedback = DrawShapes.Feedback()
+    shapes_feedback = createmate_interfaces.action.DrawShapes.Feedback()
     
     # keep track of whether all shapes succeeded
     shape_failed = False
 
     # loop through requested shapes
     for i in range(len(ds_goals)): #DrawShapes message array of shapes
-      shapes_feedback.shape_num = i
-      shapes_feedback.status = "setup"
+      shapes_feedback.shape_progress.shape_num = i
+      shapes_feedback.shape_progress.status = "setup"
       goal_handle.publish_feedback(shapes_feedback)
+      '''
       #1: pickup correct drawing implement
       self.get_correct_tool(ds_goals[i].tool)
 
       #2 move to canvas start point
-      shapes_feedback.status = "moving to canvas start point"
+      shapes_feedback.shape_progress.status = "moving to canvas start point"
       goal_handle.publish_feedback(shapes_feedback)
       shape_goal_msg = ds_goals[i]
       self.to_shape_start(shape_goal_msg.shape, shape_goal_msg.start_location)
 
       #3 send drawing request 
-      shapes_feedback.status = "init drawing"
+      shapes_feedback.shape_progress.status = "init drawing"
       goal_handle.publish_feedback(shapes_feedback)
   
-      shape_result = self.robo_shape_action_client.send_goal(shape_goal_msg) #drawing node uses the Shape messages in the DrawShapes messages
+      #shape_result = self.robo_shape_action_client.send_goal(shape_goal_msg) #drawing node uses the Shape messages in the DrawShapes messages
+      '''
+      shape_result = 'COMPLETE' #TODO uncomment
       if shape_result == "COMPLETE":
-        shapes_feedback.status = "complete" #TODO: add a failure check if drawing node sends failure
+        shapes_feedback.shape_progress.status = "complete" #TODO: add a failure check if drawing node sends failure
       else:
-        shapes_feedback.status = "failed"
+        shapes_feedback.shape_progress.status = "failed"
         shape_failed = True
       goal_handle.publish_feedback(shapes_feedback)
 
     goal_handle.succeed()
-    result = DrawShapes.Result()
+    result = createmate_interfaces.action.DrawShapes.Result()
 
     # reply with results (false success if ANY shapes failed)
-    result.total_success = not shape_failed
+    result.total_success.data = True #not shape_failed
     self.state = CoreState.ACCEPTING_DRAW_REQS
     return result
 
@@ -213,6 +218,7 @@ class CoordinatorActionServer(Node):
     self.get_logger().info('setting up service clients')
 
     # pickup marker service
+    '''
     self.pickup_tool_client = self.create_client(GoalPosition, 'move_to_preset')
     while not self.pickup_tool_client.wait_for_service(timeout_sec=1.0):
       self.get_logger().info('service not available, waiting again...')
@@ -221,6 +227,7 @@ class CoordinatorActionServer(Node):
     self.nav_client = self.create_client(Navigate, 'nav2_preset_map_pose')
     while not self.nav_client.wait_for_service(timeout_sec=1.0):
       self.get_logger().info('service not available, waiting again...')
+    '''
 
     # TODO: create an action client to communicate w/ the drawing node
     # self.robo_shape_action_client = ActionClient(self, StretchDrawShape, 'stretch_draw_shape')
@@ -242,8 +249,8 @@ def main():
   except KeyboardInterrupt:
     coor_node.get_logger().info('Keyboard interrupt... shutting down')
   
-  coor_node.destroy_node()
-  rclpy.shutdown()
+  #coor_node.destroy_node()
+  #rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
