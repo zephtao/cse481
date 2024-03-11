@@ -78,17 +78,19 @@ class DrawService(Node):
             callback to update current joint states from service
         '''
         self.joint_states = joint_states
+        self.arm_pos = self.joint_states.position[0]
+        self.lift_pos = self.joint_states.position[1]
 
     def draw_circle_trajectory(self, n, diameter=0.1): #0.1
         # get the arm and lift positions (given center of circle)
         # TODO: for steph: replace self.joint_states with start_location from zephyr
-        arm_pos = self.joint_states.position[0] + (diameter / 2)
-        lift_pos = self.joint_states.position[1]
-        
+        # arm_pos = self.joint_states.position[0] + (diameter / 2)
+        # lift_pos = self.joint_states.position[1]
+    
         # sample n points along circle
         t = np.linspace(0, 2*np.pi, n, endpoint=True)
-        x = (diameter / 2) * np.cos(t) + arm_pos
-        y = (diameter / 2) * np.sin(t) + lift_pos
+        x = (diameter / 2) * np.cos(t) + self.arm_pos + (diameter / 2)
+        y = (diameter / 2) * np.sin(t) + self.lift_pos
         circle_mat = np.c_[x, y]
 
         time_dt = 25 / n
@@ -106,9 +108,9 @@ class DrawService(Node):
             
             # add the waypoints to the trajectory
             points.append(point)
-
+        
         self.get_logger().info('sending trajectory')
-
+        prelim_traj = FollowJointTrajectory.Goal()
         #set up trajectory goal
         trajectory_goal = FollowJointTrajectory.Goal()
         trajectory_goal.trajectory.header.frame_id = 'base_link'
@@ -123,14 +125,14 @@ class DrawService(Node):
 
         # get the arm and lift positions (given center of triangle)
         # TODO: not needed to do this here if calling node deals with moving the arm to the correct pos
-        arm_pos = self.joint_states.position[0] - (side_len / 2)
-        lift_pos = self.joint_states.position[1] - (height / 2)
+        #arm_pos = self.joint_states.position[0] #- (side_len / 2)
+        #lift_pos = self.joint_states.position[1] #- (height / 2)
 
         # Define the triangle's corner points relative to the initial arm and lift positions
         triangle_corners = np.array([
-            [side_len, 0],                   
-            [-side_len / 2, side_len],  
-            [-side_len / 2, -side_len],                                
+            [self.arm_pos + side_len, self.lift_pos], #start point
+            [self.arm_pos + side_len / 2, self.lift_pos + side_len], # middle top
+            [self.arm_pos, self.lift_pos] # back to orig corner
         ])
 
         # Following example from above
@@ -155,17 +157,16 @@ class DrawService(Node):
 
     def draw_square_trajectory(self, side_len):
         # get the arm and lift positions (given center of square)
-        arm_pos = self.joint_states.position[0] + (side_len / 2)
-        lift_pos = self.joint_states.position[1] + (side_len / 2)
+        # arm_pos = self.joint_states.position[0] + (side_len / 2)
+        # lift_pos = self.joint_states.position[1] + (side_len / 2)
 
         time_dt = 15
 
-        waypoints = [                                  
-            (arm_pos + side_len, lift_pos),                  
-            (arm_pos + side_len, lift_pos + side_len),  # Move up 
-            (arm_pos, lift_pos + side_len),                  # Move right
-            (arm_pos, lift_pos),                                  # Move down 
-            (arm_pos + side_len, lift_pos)                   # Return left back to start (⬜️)
+        waypoints = [                                              
+            (self.arm_pos, self.lift_pos + side_len),  # Move up 
+            (self.arm_pos + side_len, self.lift_pos + side_len),   # Move right
+            (self.arm_pos + side_len, self.lift_pos),       # Move down 
+            (self.arm_pos, self.lift_pos)                   # Return left back to start (⬜️)
         ]
 
         points = []

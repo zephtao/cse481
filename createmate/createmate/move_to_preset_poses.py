@@ -180,7 +180,7 @@ class PickupMarker(Node):
       goal_point.positions= [q[1]]
     else: # this will go through the pickup marker sequence
       # default pose to send is curr pose, with gripper straight out
-      goal_point.positions = [0.0, self.curr_pose[3], 4* self.curr_pose[5], 0.0, 0.0]
+      goal_point.positions = [0.0, self.curr_trajectory_positions[3], 4* self.curr_trajectory_positions[5], 0.0, 0.0]
 
       # if grasping or picking up, close gripper
       if self.state.value >= PickupSeq.GRASP.value :
@@ -242,14 +242,14 @@ class PickupMarker(Node):
         self.get_logger().info(f'target point for wrist center: {target}')
         self.get_logger().info('Solving Inverse Kinematics for goal point')
         q = self.get_q_soln(target) # returns only base changed if the threshold is not met
-        if abs(q[1]) < 0.01:
+        if abs(q[1]) < 0.1:
           self.get_logger().info('the base is aligned!')
           base_done = True
         else: 
-          self.get_logger().info('the base is not aligned yet')
+          self.get_logger().info(f'the base is not aligned yet, still requires movement of: {q[1]}')
 
       success = self.move_to_configuration(q, base_done)
-      time.sleep(2) # sleep just for safety
+      time.sleep(4) # sleep just for safety
 
       if success and self.state.value < PickupSeq.PICKUP.value and base_done:
         # move onto the next pickup phase

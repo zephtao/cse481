@@ -101,9 +101,11 @@ stretch_driver node info: We have access to all the following topics/services/ac
 - stow_marker (position)
 - canvas_align (tf aruco)
 - grab_tool (tf aruco)
-- face_marker_table (location map)
+- face_marker_table (location map), facing the markers to pick them up
 - face_canvas (location map)
 - draw_ready
+- map_init_loc (location map), the start of the entire cycle
+
 
 # current start commands
 ros2 launch stretch_nav2 navigation.launch.py map:=/home/hello-robot/cse481/map_capstone_room.yaml
@@ -116,7 +118,7 @@ in /cse481/team2 (for each ros2 node run the following commands in sep terminals
 
   -ros2 run createmate coordinator
   -ros2 run createmate posemanipulate
-  
+
   - ros2 run createmate navigatorsrv
 
 # switch to position mode
@@ -131,3 +133,5 @@ ros2 action send_goal /user_draw_shapes createmate_interfaces/action/DrawShapes 
 
 # send command to move to preset pose
 ros2 service call /move_to_preset createmate_interfaces/srv/GoalPosition '{pose_name: 'stow_marker'}'
+ros2 service call /move_to_preset createmate_interfaces/srv/GoalPosition '{pose_name: 'grab_tool', markerid: 'target_object1'}'
+

@@ -76,7 +76,7 @@ def traj_res_callback(self, future):
     res = future.result().result
     self.get_logger().info(f'trajectory complete, result: {res}')
 
-def draw_circle_trajectory(n, diameter_m=0.2):
+def draw_circle_trajectory(n, diameter_m=0.5): #0.2
     t = np.linspace(0, 2*np.pi, n, endpoint=True)
     x = (diameter_m / 2) * np.cos(t) + arm_init
     y = (diameter_m / 2) * np.sin(t) + lift_init
