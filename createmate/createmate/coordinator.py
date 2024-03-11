@@ -110,11 +110,15 @@ class CoordinatorActionServer(Node):
     if self.quick_test:
       return
     # calc start coords
-    if name == 'triangle':
+    if name == 't':
       side_len = 0.15 #TODO hardcoded
       height = 0.15
       x = coor.x - (side_len / 2)
       y = coor.y - (height / 2)
+    elif name == 'c':
+        
+    else :
+
     toShapeStartReq = GoalPosition.Request()
     toShapeStartReq.markerid = 'target_object1'
     toShapeStartReq.pose_name = 'setup_draw'
