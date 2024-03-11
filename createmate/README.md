@@ -115,11 +115,19 @@ in /cse481/team2 (for each ros2 node run the following commands in sep terminals
   source install/setup.bash
 
   -ros2 run createmate coordinator
-  -ros2 run createmate posemanipulator
+  -ros2 run createmate posemanipulate
+  
   - ros2 run createmate navigatorsrv
 
-
+# switch to position mode
+ros2 service call /switch_to_position_mode std_srvs/srv/Trigger '{}'
 
 # send commands to draw service
 ros2 service call /draw_shape createmate_interfaces/srv/DrawShape '{shape: {shape: 'c'}}'
 ^ 'c' is circle, switch for other shapes
+
+# send commands to coordinator (will call draw, navigate, etc.):
+ros2 action send_goal /user_draw_shapes createmate_interfaces/action/DrawShapes '{shape_goals:{shapes:[{shape: 'c'}]}}'
+
+# send command to move to preset pose
+ros2 service call /move_to_preset createmate_interfaces/srv/GoalPosition '{pose_name: 'stow_marker'}'
