@@ -43,10 +43,9 @@ class PickupMarker(Node):
   'ros code to pickup a marker'
   def __init__(self):
     super().__init__('marker_pickup')
-    self.srv = self.create_service(GoalPosition, 'move_to_preset', self.pickup_marker_cb)
-
     # callbackgroup for action server responses (avoid deadlock w/ the node's service callback)
     ac_cbs = ReentrantCallbackGroup()
+    self.srv = self.create_service(GoalPosition, 'move_to_preset', self.pickup_marker_cb, callback_group=ac_cbs)
 
     # buffer asynchronously fills with transformations
     self.tf_buffer = Buffer()
@@ -55,11 +54,6 @@ class PickupMarker(Node):
     # robot body vars
     self.urdf_path = '/home/hello-robot/cse481/team2/src/createmate/createmate/stretch.urdf'
     self.chain = ikpy.chain.Chain.from_urdf_file(self.urdf_path) # joints chained together
-
-    # create client to request change to position mode
-    self.position_mode_client = self.create_client(Trigger, '/switch_to_position_mode', callback_group=ac_cbs)
-    while not self.position_mode_client.wait_for_service(timeout_sec=60.0):
-      self.get_logger().info('waitinf on /switch_to_position_mode service')
 
     # subscribe to current joint states and store
     self.joint_states = JointState()
@@ -87,8 +81,19 @@ class PickupMarker(Node):
     # state of node
     self.state = PickupSeq.READY
 
-    #TODO: uncomment for testing w.o actually initiating marker pickup!
-    #self.sleepy_action_client = ActionClient(self, Sleepy, 'sleepy_act', callback_group=ac_cbs)
+  def next_phase(self):
+    if self.state == PickupSeq.READY:
+      self.state = PickupSeq.BASE
+    elif self.state == PickupSeq.BASE:
+      self.state = PickupSeq.LIFT
+    elif self.state == PickupSeq.LIFT:
+      self.state = PickupSeq.EXTEND
+    elif self.state == PickupSeq.EXTEND:
+      self.state = PickupSeq.GRASP
+    elif  self.state == PickupSeq.GRASP:
+      self.state = PickupSeq.PICKUP
+    elif self.state == PickupSeq.PICKUP:
+      self.state = PickupSeq.READY
 
   # CALLBACKS FOR EXTERNAL NODE MESSAGES
   def joint_states_callback(self, joint_states):
@@ -96,6 +101,8 @@ class PickupMarker(Node):
       callback to update current joint states from service
     '''
     self.joint_states = joint_states
+    # save the current relevant joint states
+    self.curr_trajectory_positions = self.get_q_init()
 
   def transform_to_base_frame(self, point_stamped):
     '''
@@ -131,33 +138,26 @@ class PickupMarker(Node):
 
     return [0.0, q_base, 0.0, q_lift, 0.0, q_arml, q_arml, q_arml, q_arml, q_yaw, 0.0, q_pitch, q_roll, 0.0, 0.0]
 
-  def get_q_soln(self, target_point, q_init):
+  def get_q_soln(self, target_point):
     '''
     Returns the new chain positions for the end effector to reach the target point
     target_point: shape (3,)
     q_init: shape (15, ) for this urdf
     '''
-    q_soln = self.chain.inverse_kinematics(target_point, initial_position=q_init)
-
-    # if on base phase, check whether the base is already aligned or needs to be moved
-    # base alignment will be be at a certain threshold #TODO: needs to be tested
-    if self.state == PickupSeq.BASE and abs(q_soln[1]) < 0.01 :
-      self.get_logger().info(f'The base translation solution is {q_soln[1]}, so the base is aligned! moving onto arm lift phase')
-      self.state == PickupSeq.LIFT
-    elif self.state == PickupSeq.BASE:
-      self.get_logger().info(f'the base is not yet aligned... only returning base translation manipulation goal')
-      q_init[1] = q_soln[1]
-      q_soln = q_init
+    self.get_logger().info(f'the current joint positions are: {self.curr_trajectory_positions}')
+    q_soln = self.chain.inverse_kinematics(target_point, initial_position=self.curr_trajectory_positions)
     return q_soln
 
-  def move_to_configuration(self, q):
+  def move_to_configuration(self, q, base_done):
     '''
         accepts chain link positions in terms of base_link and move robot to that configuration
         q: chain link positions
-        base: boolean indicating whether only the base is being moved
-        gripper_open: bolean indicating whether the gripper should be open
-            for this step (true if base_only)
+        base_done: boolean indicating whether the base was determined to be aligned (just for marker pickup)
+        NOTE: if in BASE state, will not do anything. The outer caller will then move onto the next phase
     '''
+    # if the  base if aligned, don't move anything, allow caller to move onto next phase
+    if self.state == PickupSeq.BASE and base_done:
+      return True 
     # ['translate_mobile_base', 'joint_lift', 'wrist_extension','gripper_aperture', 'joint_wrist_pitch']
     # q =  [0.0, q_base, 0.0, q_lift, 0.0, q_arml, q_arml, q_arml, q_arml, q_yaw, 0.0, q_pitch, q_roll, 0.0, 0.0]
     #set up trajectory goal
@@ -170,23 +170,25 @@ class PickupMarker(Node):
     duration_goal = Duration(seconds=10).to_msg()
     goal_point.time_from_start = duration_goal
 
+    # move just the marker to the desired starting position
     if self.state == PickupSeq.DRAWSTART:
       trajectory_goal.trajectory.joint_names = ['wrist_extension', 'joint_lift']
       goal_point.positions = [4*q[5], q[3]]
+    # move 
     elif self.state == PickupSeq.DRAWSTARTBASE:
       trajectory_goal.trajectory.joint_names = ['translate_mobile_base']
-      goal_point.positions = [q[1]]
-    else:
-      # default pose to send is curr pose, with grippper straight out
+      goal_point.positions= [q[1]]
+    else: # this will go through the pickup marker sequence
+      # default pose to send is curr pose, with gripper straight out
       goal_point.positions = [0.0, self.curr_pose[3], 4* self.curr_pose[5], 0.0, 0.0]
 
       # if grasping or picking up, close gripper
       if self.state.value >= PickupSeq.GRASP.value :
         self.get_logger().info('gripper will be closed...')
-        goal_point.positions[3] =  0.08
+        goal_point.positions[3] =  -0.12
       else: # otherwise, keep gripper open
         self.get_logger().info('gripper will be open...')
-        goal_point.positions[3] = -0.12
+        goal_point.positions[3] = 0.08
 
       # adjust pose w. appropriate q goal to move one limb at a time
       if self.state == PickupSeq.BASE: # only moving base at the beginning
@@ -214,19 +216,22 @@ class PickupMarker(Node):
   def pickup_marker(self, marker_name):
     self.state = PickupSeq.BASE
     target_done = False
+    base_done = False
 
     # get recorded pose
     marker_grasp_info = self.poses['grab_tool']
-    position = marker_grasp_info.vector
-    rec_pt = PointStamped(point=Point(x=position.x, y=position.y, z=position.z))
-    rec_pt.header.frame_id = marker_name
+    position = marker_grasp_info['vector']
+    rec_pt = PointStamped(point=Point(x=position['x'], y=position['y'], z=position['z']))
+    rec_pt.header.frame_id = marker_name 
 
     # loop through these steps until grasping marker and picked up
-    while not target_done:
+    while not target_done:  
+      self.get_logger().info('Retrieving current joint positions...')
       # only recalculate ik when dealing with base movement, the last calculated
       # q_soln when base is aligned will be used for arm movements (lift, extend)
-      if self.state == PickupSeq.BASE:
+      if not base_done:
         tf_found = False
+        base_done = False
         while not tf_found:
           self.get_logger().info(f'Attempting tf calculation...')
           target = self.transform_to_base_frame(rec_pt)
@@ -235,25 +240,30 @@ class PickupMarker(Node):
           else:
             time.sleep(0.5)
         self.get_logger().info(f'target point for wrist center: {target}')
-        # solve
-        self.get_logger().info('Retrieving current joint positions...')
-        q_init = self.get_q_init() # shape (15,)
-        self.get_logger().info(f'Current joint positions: {q_init}')
         self.get_logger().info('Solving Inverse Kinematics for goal point')
-        q = self.get_q_soln(target, q_init)
+        q = self.get_q_soln(target) # returns only base changed if the threshold is not met
+        if abs(q[1]) < 0.01:
+          self.get_logger().info('the base is aligned!')
+          base_done = True
+        else: 
+          self.get_logger().info('the base is not aligned yet')
 
-      # move robot base
-      self.curr_pose = q_init
-      self.get_logger().info(f'the solution is: {q}, will now attempt to move to the configuration for manipulate {self.state.name} phase')
-      success = self.move_to_configuration(q)
-      if success and self.state.value < PickupSeq.PICKUP.value:
+      success = self.move_to_configuration(q, base_done)
+      time.sleep(2) # sleep just for safety
+
+      if success and self.state.value < PickupSeq.PICKUP.value and base_done:
         # move onto the next pickup phase
-        self.state == PickupSeq(self.state + 1)
+        self.next_phase()
         self.get_logger().info('moved onto next phase')
       elif not success:
+        # trajectory did not succeed, send same request
         self.get_logger().info('did not succeed, will try again')
-      else:
+      elif base_done:
+        # we reached the end of the pickup sequence!
         target_done == True
+      else:
+        self.get_logger().info('now that movement has ended, will check base alignment again')
+
     # move to default marker holding pose
     self.move_to_default_pose('stow_marker')
     self.get_logger().info('target goal reached!')
@@ -283,18 +293,16 @@ class PickupMarker(Node):
   def to_marker_start(self, request):
     '''
     request of type GoalPosition.Request
+    this will move the marker to the requested start location for a shape
     '''
     self.state = PickupSeq.DRAWSTART
     canvas_pt = PointStamped(point=Point(x=request.x, y=request.y, z=request.z))
     canvas_pt.header.frame_id = request.markerid
     target = self.transform_to_base_frame(canvas_pt)
     self.get_logger().info(f'target point for wrist center: {target}')
-    # solve
-    self.get_logger().info('Retrieving current joint positions...')
-    q_init = self.get_q_init() # shape (15,)
-    self.get_logger().info(f'Current joint positions: {q_init}')
+    self.get_logger
     self.get_logger().info('Solving Inverse Kinematics for goal point')
-    q = self.get_q_soln(target, q_init)
+    q = self.get_q_soln(target)
 
     # move arm lift/extend
     self.get_logger().info(f'the solution is: {q}, will now attempt to move to the configuration for manipulate {self.state.name} phase')
@@ -304,18 +312,15 @@ class PickupMarker(Node):
     self.move_to_configuration(q)
 
   def pickup_marker_cb(self, request, response):
-    # switch to position mode just in case
-    self.get_logger().info('asking to switch to position mode')
-    position_req = Trigger.Request()
-    res = self.position_mode_client.call(position_req)
-    self.get_logger.info(f'position mode service result: {res}')
-
     # move to desired poses
     if request.pose_name == 'grab_tool':
+      self.get_logger().info('grabbing tool!')
       self.pickup_marker(request.markerid)
     elif request.pose_name == 'setup_draw':
+      self.get_logger().info('setting up to draw at requested shape location!')
       self.to_marker_start(request)
     else:
+      self.get_logger().info('moving to default pose!')
       self.move_to_default_pose(request.pose_name)
     response.success = True #TODO, maybe if no progress after multiple loops, then send fail
     return response
@@ -326,8 +331,11 @@ def main():
 
   marker_pickup_node = PickupMarker()
   executor.add_node(marker_pickup_node)
-  executor.spin()
-
+  try:
+    executor.spin()
+  except KeyboardInterrupt:
+    marker_pickup_node.get_logger().info('Keyboard interrupt... shutting down')
+  marker_pickup_node.destroy_node()
   rclpy.shutdown()
 
 
