@@ -131,6 +131,9 @@ class CoordinatorActionServer(Node):
     self.get_logger().info('done switching modes!')
 
   def get_correct_tool(self, req_tool):
+    '''
+    picks up the correct tool if not already in hand. If in hand, does nothing
+    '''
     if req_tool != self.tool_in_grip:
       # navigate to the marker table
       self.switch_modes('navigation')
@@ -141,6 +144,11 @@ class CoordinatorActionServer(Node):
 
       # pickup the marker
       self.switch_modes('position')
+      pickupToolReq = GoalPosition.Request()
+      pickupToolReq.pose_name = 'stow_marker'
+      res = self.pickup_tool_client.call(pickupToolReq)
+      self.get_logger().info('result of createmate get ready to pickup the tool: {res}')
+
       pickupToolReq = GoalPosition.Request()
       pickupToolReq.markerid = req_tool
       pickupToolReq.pose_name = 'grab_tool'
@@ -154,6 +162,13 @@ class CoordinatorActionServer(Node):
       navSrvReq.target_map_pose = 'face_canvas'
       res = self.nav_client.call(navSrvReq)
       self.get_logger().info('result of createmate navigation service: {res}')
+      
+      # go to drawing position
+      self.switch_modes('position')
+      drawReadyReq = GoalPosition.Request()
+      drawReadyReq.pose_name = 'draw_ready' # moves the wrist towards the canvas
+      res = self.nav_client.call(drawReadyReq)
+      self.get_logger().info('result of request to get in drawing pose: {res}')
       
   def execute_user_draw_shapes(self, goal_handle):
     '''
@@ -269,8 +284,8 @@ def main():
   except KeyboardInterrupt:
     coor_node.get_logger().info('Keyboard interrupt... shutting down')
   
-  #coor_node.destroy_node()
-  #rclpy.shutdown()
+  coor_node.destroy_node()
+  rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

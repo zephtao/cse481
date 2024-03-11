@@ -17,56 +17,75 @@ class Navigator(Node):
   def __init__(self):
     super().__init__('draw_nav')
     # callbackgroup for action server responses (avoid deadlock w/ the node's service callback)
-    ac_cbs = ReentrantCallbackGroup()
+    self.ac_cbs = ReentrantCallbackGroup()
 
     # subscribe to the initial pose topic
-    self.init_pose_sub = self.create_subscription(PoseWithCovarianceStamped, 'initialpose', self.define_init_pose, 10, callback_group=ac_cbs)
+    self.init_pose_sub = self.create_subscription(PoseWithCovarianceStamped, 'initialpose', self.define_init_pose, 10, callback_group=self.ac_cbs)
     self.init_pose = Pose()
     self.initial_pose_set = False
 
     # create action client for nav2 stack
-    self.nav_to_pose_client = ActionClient(self, NavigateToPose, 'navigate_to_pose', callback_group=ac_cbs)
+    self.nav_to_pose_client = ActionClient(self, NavigateToPose, 'navigate_to_pose', callback_group=self.ac_cbs)
+    while not self.nav_to_pose_client.wait_for_server(timeout_sec=1.0):
+            self.get_logger().info("'NavigateToPose' action server not available, waiting...")
 
     # load poses
-    self.pose_filepath = '/home/hello-robot/cse481/zephyr_ws/save_poses.json'
+    self.pose_filepath = '/home/hello-robot/cse481/team2/save_poses.json'
     if os.path.isfile(self.pose_filepath):
       with open(self.pose_filepath, 'r') as pose_file:
         self.poses = json.load(pose_file)
     else:
       self.get_logger().info('file not found')
   
-  def extract_req_pose(self, request):
-    #load the pose goal
-    req_pose = self.poses[request.target_map_pose]
-    req_vector = req_pose['vector']
-    req_quaternion = req_pose['quaternion']
-
-    goal = PoseStamped()
-    goal.header.frame_id = req_pose.frame_id
-    goal.pose.position = Point(x=float(req_vector.x), y=float(req_vector.y), z=float(req_vector.z))
-    goal.pose.orientation = Quaternion(x=float(req_quaternion.x), y=float(req_quaternion.y), z=float(req_quaternion.z), w=float(req_quaternion.w))
-
-    #final goal
-    goal_msg = NavigateToPose.Goal()
-    goal_msg.pose = goal
-    return goal_msg
+  # def extract_req_pose(self, request):
+  #   self.get_logger().info('extracting navigation position data')
+  #   #load the pose goal
+  #   req_pose = self.poses[request.target_map_pose]
+  #   req_vector = req_pose['vector']
+  #   req_quaternion = req_pose['quaternion']
+  #   self.get_logger.info('creating message')
+  #   goal = PoseStamped()
+  #   goal.header.frame_id = req_pose.frame_id
+  #   goal.pose.position = Point(x=float(req_vector.x), y=float(req_vector.y), z=float(req_vector.z))
+  #   goal.pose.orientation = Quaternion(x=float(req_quaternion.x), y=float(req_quaternion.y), z=float(req_quaternion.z), w=float(req_quaternion.w))
+  #   self.get_logger.info('preparing final message')
+  #   #final goal
+  #   goal_msg = NavigateToPose.Goal()
+  #   goal_msg.pose = goal
+  #   return goal_msg
 
   def nav2_preset_map_pose(self, request, response):
     '''
       Callback for the node's service will navigate to chosen map location
     '''
+    self.get_logger().info(f'received a request for {request.target_map_pose}')
     # check the pose is in the file
     if request.target_map_pose not in self.poses.keys():
       self.get_logger().info(f'The requested pose, {request.target_map_pose}, was not found in the saved pose file')
       response.success = False
       return response
-    
-    # extract goal info + prepare message
-    goal_msg = self.extract_req_pose(request)
+    else: 
+      req_pose = self.poses[request.target_map_pose]
+      self.get_logger().info(f'found the position: {req_pose}')
 
-    # send the pose goal to nav2 stack
-    while not self.nav_to_pose_client.wait_for_server(timeout_sec=1.0):
-            self.info("'NavigateToPose' action server not available, waiting...")
+    # extract goal info + prepare message
+    #goal_msg = self.extract_req_pose(request)
+    self.get_logger().info('extracting navigation position data')
+    #load the pose goal
+    self.get_logger().info('here')
+    req_vector = req_pose['vector']
+    req_quaternion = req_pose['quaternion']
+    self.get_logger().info('creating message')
+    goal = PoseStamped()
+    goal.header.frame_id = req_pose['frame_id']
+    goal.pose.position = Point(x=float(req_vector['x']), y=float(req_vector['y']), z=float(req_vector['z']))
+    goal.pose.orientation = Quaternion(x=float(req_quaternion['x']), y=float(req_quaternion['y']), z=float(req_quaternion['z']), w=float(req_quaternion['z']))
+    self.get_logger().info('preparing final message')
+    #final goal
+    goal_msg = NavigateToPose.Goal()
+    goal_msg.pose = goal
+
+    self.get_logger().info(f'preparing to send message! {goal_msg}')
 
     self.get_logger().info(f'Navigating to goal: {goal_msg}')
     nav_result = self.nav_to_pose_client.send_goal(goal_msg)
@@ -90,7 +109,7 @@ class Navigator(Node):
       rclpy.spin_once(self, timeout_sec=0.5)
     self.get_logger().info(f'received the initial start pose! Will now start nav2_preset_map_pose service...')
      # create service
-    self.srv = self.create_service(Navigate, 'nav2_preset_map_pose', self.nav2_preset_map_pose)
+    self.srv = self.create_service(Navigate, 'nav2_preset_map_pose', self.nav2_preset_map_pose, callback_group=self.ac_cbs)
     self.get_logger().info('service created')
 
 def main():

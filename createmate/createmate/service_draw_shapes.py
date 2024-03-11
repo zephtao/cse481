@@ -79,7 +79,7 @@ class DrawService(Node):
         '''
         self.joint_states = joint_states
 
-    def draw_circle_trajectory(self, n, diameter=0.1):
+    def draw_circle_trajectory(self, n, diameter=0.1): #0.1
         # get the arm and lift positions (given center of circle)
         # TODO: for steph: replace self.joint_states with start_location from zephyr
         arm_pos = self.joint_states.position[0] + (diameter / 2)
@@ -201,7 +201,7 @@ class DrawService(Node):
             self.get_logger().info('received triangle request')
             self.draw_triangle_position(0.15, 0.15)
         else:
-            self.get_logget().info('received square request')
+            self.get_logger().info('received square request')
             self.draw_square_trajectory(0.15)
         response.shape_drawn = True
         return response
