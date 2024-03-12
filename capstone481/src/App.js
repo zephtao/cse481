@@ -95,7 +95,8 @@ function App() {
 
   useEffect(() => {
     const ros = new ROSLIB.Ros({
-      url : "ws://slinky.hcrlab.cs.washington.edu:9090"
+      // url : "ws://slinky.hcrlab.cs.washington.edu:9090"
+      url : "ws://weird-stretch.cs.washington.edu:9090"
     });
 
     // once the ROS connection is made, create the trajectory client
@@ -138,13 +139,23 @@ function App() {
     realShapeList.forEach((shape) => {
       const shapeMsg = new ROSLIB.Message({
         shape: shape.type,
-        tool: '',
+        tool: 'holder',
         start_location: {
           x: shape.x,
           y: shape.y,
           z: 0
         }
       });
+
+      if (shape.type === 'circle') {
+        shapeMsg.shape = 'c'
+      }
+      if (shape.type === 'square') {
+        shapeMsg.shape = 's'
+      }
+      if (shape.type === 'triangle') {
+        shapeMsg.shape = 't'
+      }
 
       drawShapesMsg.shapes.push(shapeMsg);
     });
@@ -283,9 +294,9 @@ function App() {
     trajectoryClient.createClient(inGoal);
   }
 
-  if (!isConnected) {
-    return (<div>Loading...</div>)
-  };
+  // if (!isConnected) {
+  //   return (<div>Loading...</div>)
+  // };
 
  return (
    <div className="App">

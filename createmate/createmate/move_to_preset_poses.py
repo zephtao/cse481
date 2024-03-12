@@ -200,7 +200,8 @@ class PickupMarker(Node):
         trajectory_goal.trajectory.joint_names.append('joint_lift')
         self.get_logger().info('lifting arm...')
         # goal_point.positions.append(q[3] + 0.00075)
-        goal_point.positions.append(q[3] + 0.000075)
+        # goal_point.positions.append(q[3] + 0.00024)
+        goal_point.positions.append(q[3] - 0.00087)
       elif self.state == PickupSeq.EXTEND:
         trajectory_goal.trajectory.joint_names.append('wrist_extension')
         self.get_logger().info('extending arm...')
@@ -329,7 +330,8 @@ class PickupMarker(Node):
       goal_point = JointTrajectoryPoint()
       duration_goal = Duration(seconds=10).to_msg()
       goal_point.time_from_start = duration_goal
-      goal_point.positions = [0.5] #TODO: figure out, maybe half a meter forward?
+      # goal_point.positions = [0.5] #TODO: figure out, maybe half a meter forward?
+      goal_point.positions = [-0.158]
     else:
       self.get_logger().info('moving to default pose!')
       self.move_to_default_pose(request.pose_name)

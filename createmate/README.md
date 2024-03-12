@@ -147,3 +147,9 @@ ros2 action send_goal /user_draw_shapes createmate_interfaces/action/DrawShapes 
 
 
 
+lift: 0.5814744763968577
+
+
+
+y we want: -0.08293339785936471
+z we want: -0.007804860284316928

@@ -10,7 +10,7 @@ class KeyboardInput(Node):
         super().__init__('keyboard_input')
         self.publisher = self.create_publisher(RecordPose, 'pose_record_req', 10)
         # self.frame_choices = {1:"map", 2:"target_object", 3:"base_link"}
-        self.frame_choices = {1:"map", 2:"unknown", 3:"base_link"}
+        self.frame_choices = {1:"map", 2:"holder", 3:"base_link"}
 
     def on_keyboard_press(self, key):
         if key == keyboard.Key.esc:

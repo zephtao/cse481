@@ -33,7 +33,7 @@ class CoreState(Enum):
 class Tool:
   NONE=''
   # TOOL1 = 'target_object' #switch these to be aruco marker names
-  TOOL1 = 'unknown'
+  TOOL1 = 'holder'
   TOOL2 = 'tool2'
 
 class CoordinatorActionServer(Node):
@@ -132,7 +132,7 @@ class CoordinatorActionServer(Node):
       y  = coor.y - side_len/2
     self.get_logger().info('x{x}, y{y}')
     toShapeStartReq = GoalPosition.Request()
-    toShapeStartReq.markerid = 'unknown' #TODO: ARUCO MARKER NAME FOR CANVAS
+    toShapeStartReq.markerid = 'canvas' #TODO: ARUCO MARKER NAME FOR CANVAS
     toShapeStartReq.pose_name = 'setup_draw'
     toShapeStartReq.x = x # robot y is moving the arm out
     toShapeStartReq.y = -y # robot z is up and down, our y is going downward
@@ -245,8 +245,9 @@ class CoordinatorActionServer(Node):
       away_from_paper_req.pose_name = 'backup'
       res = self.pickup_tool_client.call(away_from_paper_req)
       goal_handle.publish_feedback(shapes_feedback)
+      time.sleep(7)
 
-    # goal_handle.succeed()
+    goal_handle.succeed()
     result = createmate_interfaces.action.DrawShapes.Result()
 
     # reply with results (false success if ANY shapes failed)
