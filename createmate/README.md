@@ -112,6 +112,8 @@ ros2 launch stretch_nav2 navigation.launch.py map:=/home/hello-robot/cse481/map_
 ros2 launch stretch_core d435i_low_resolution.launch.py 
 ros2 launch stretch_core stretch_aruco.launch.py
 
+cd cse481/team2; colcon build; source install/setup.bash
+
 in /cse481/team2 (for each ros2 node run the following commands in sep terminals):
   colcon build
   source install/setup.bash
@@ -127,6 +129,11 @@ ros2 service call /switch_to_position_mode std_srvs/srv/Trigger '{}'
 # send commands to draw service
 ros2 service call /draw_shape createmate_interfaces/srv/DrawShape '{shape: {shape: 'c'}}'
 ^ 'c' is circle, switch for other shapes
+ros2 action send_goal /user_draw_shapes createmate_interfaces/action/DrawShapes '{shape_goals:{shapes:[{shape: 'c', tool: 'target_object1'}]}}'
+ros2 action send_goal /user_draw_shapes createmate_interfaces/action/DrawShapes '{shape_goals:{shapes:[{shape: 's', tool: 'target_object', start_location: {x: 0.35, y: 0.35}}]}}'
+
+ros2 action send_goal /user_draw_shapes createmate_interfaces/action/DrawShapes '{shape_goals:{shapes:[{shape: 's', tool: 'unknown', start_location: {x: 0.35, y: 0.35}}]}}'
+
 
 # send commands to coordinator (will call draw, navigate, etc.):
 ros2 action send_goal /user_draw_shapes createmate_interfaces/action/DrawShapes '{shape_goals:{shapes:[{shape: 'c'}]}}'
@@ -134,4 +141,9 @@ ros2 action send_goal /user_draw_shapes createmate_interfaces/action/DrawShapes 
 # send command to move to preset pose
 ros2 service call /move_to_preset createmate_interfaces/srv/GoalPosition '{pose_name: 'stow_marker'}'
 ros2 service call /move_to_preset createmate_interfaces/srv/GoalPosition '{pose_name: 'grab_tool', markerid: 'target_object1'}'
+
+ros2 action send_goal /user_draw_shapes createmate_interfaces/action/DrawShapes '{shape_goals:{shapes:[{shape: 's', start_location: {x: 5, y: 5}}]}}'
+
+
+
 

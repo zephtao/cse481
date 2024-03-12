@@ -148,7 +148,7 @@ class PickupMarker(Node):
     q_soln = self.chain.inverse_kinematics(target_point, initial_position=self.curr_trajectory_positions)
     return q_soln
 
-  def move_to_configuration(self, q, base_done):
+  def move_to_configuration(self, q, base_done=True):
     '''
         accepts chain link positions in terms of base_link and move robot to that configuration
         q: chain link positions
@@ -158,12 +158,10 @@ class PickupMarker(Node):
     # if the  base if aligned, don't move anything, allow caller to move onto next phase
     if self.state == PickupSeq.BASE and base_done:
       return True 
-    # ['translate_mobile_base', 'joint_lift', 'wrist_extension','gripper_aperture', 'joint_wrist_pitch']
-    # q =  [0.0, q_base, 0.0, q_lift, 0.0, q_arml, q_arml, q_arml, q_arml, q_yaw, 0.0, q_pitch, q_roll, 0.0, 0.0]
     #set up trajectory goal
     trajectory_goal = FollowJointTrajectory.Goal()
     trajectory_goal.trajectory.header.frame_id = 'base_link'
-    trajectory_goal.trajectory.joint_names = self.joint_names
+    # trajectory_goal.trajectory.joint_names = self.joint_names
 
     # create trajectory point
     goal_point = JointTrajectoryPoint()
@@ -177,32 +175,40 @@ class PickupMarker(Node):
     # move 
     elif self.state == PickupSeq.DRAWSTARTBASE:
       trajectory_goal.trajectory.joint_names = ['translate_mobile_base']
-      goal_point.positions= [q[1]]
+      goal_point.positions= [0.158]
+      # goal_point.positions= [q[1] - 0.002] # will probably need to account for marker length # should work out to .05
+      # trajectory_goal.trajectory.joint_names = ['translate_mobile_base', 'wrist_yaw']
+      # goal_point.positions= [q[1] - 0.05, q[3]]
+      # gripper_contact_effort = 30
+      # joint_efforts = [0, gripper_contact_effort]
+      # goal_point.effort = joint_efforts
     else: # this will go through the pickup marker sequence
-      # default pose to send is curr pose, with gripper straight out
-      goal_point.positions = [0.0, self.curr_trajectory_positions[3], 4* self.curr_trajectory_positions[5], 0.0, 0.0]
-
+      trajectory_goal.trajectory.joint_names = ['gripper_aperture', 'joint_wrist_pitch']
+      goal_point.positions = [0.0, 0.0]
       # if grasping or picking up, close gripper
       if self.state.value >= PickupSeq.GRASP.value :
         self.get_logger().info('gripper will be closed...')
-        goal_point.positions[3] =  -0.12
+        goal_point.positions[0] = -0.12
       else: # otherwise, keep gripper open
         self.get_logger().info('gripper will be open...')
-        goal_point.positions[3] = 0.08
+        goal_point.positions[0] = 0.08
 
       # adjust pose w. appropriate q goal to move one limb at a time
       if self.state == PickupSeq.BASE: # only moving base at the beginning
-        self.get_logger().info('only moving base....')
-        goal_point.positions[0] = q[1]
+        self.get_logger().info('not movinggggg')
       elif self.state == PickupSeq.LIFT:
+        trajectory_goal.trajectory.joint_names.append('joint_lift')
         self.get_logger().info('lifting arm...')
-        goal_point.positions[1] = q[3]
+        # goal_point.positions.append(q[3] + 0.00075)
+        goal_point.positions.append(q[3] + 0.000075)
       elif self.state == PickupSeq.EXTEND:
+        trajectory_goal.trajectory.joint_names.append('wrist_extension')
         self.get_logger().info('extending arm...')
-        goal_point.positions[2] = 4*q[5]
+        goal_point.positions.append(4*q[5])
       elif self.state == PickupSeq.PICKUP:
+        trajectory_goal.trajectory.joint_names.append('joint_lift')
         self.get_logger().info('picking up the marker')
-        goal_point.positions[1] = 1 # HARDCODED LIFT
+        goal_point.positions.append(0.8) # HARDCODED LIFT
 
     trajectory_goal.trajectory.points = [goal_point]
     self.get_logger().info(f'trajectory goal sent:{trajectory_goal}')
@@ -214,7 +220,7 @@ class PickupMarker(Node):
     return True
 
   def pickup_marker(self, marker_name):
-    self.state = PickupSeq.BASE
+    self.state = PickupSeq.BASE # skipping base
     target_done = False
     base_done = False
 
@@ -242,26 +248,21 @@ class PickupMarker(Node):
         self.get_logger().info(f'target point for wrist center: {target}')
         self.get_logger().info('Solving Inverse Kinematics for goal point')
         q = self.get_q_soln(target) # returns only base changed if the threshold is not met
-        if abs(q[1]) < 0.1:
-          self.get_logger().info('the base is aligned!')
-          base_done = True
-        else: 
-          self.get_logger().info(f'the base is not aligned yet, still requires movement of: {q[1]}')
+        base_done = True
+        # if abs(q[1]) < 0.05:
+        #   self.get_logger().info(f'the base is aligned! error is only {q[1]}')
+        #   base_done = True
+        # else: 
+        #   self.get_logger().info(f'the base is not aligned yet, still requires movement of: {q[1]}')
 
       success = self.move_to_configuration(q, base_done)
-      time.sleep(4) # sleep just for safety
 
-      if success and self.state.value < PickupSeq.PICKUP.value and base_done:
+      if success and self.state != PickupSeq.PICKUP and base_done:
         # move onto the next pickup phase
         self.next_phase()
-        self.get_logger().info('moved onto next phase')
-      elif not success:
-        # trajectory did not succeed, send same request
-        self.get_logger().info('did not succeed, will try again')
-      elif base_done:
-        # we reached the end of the pickup sequence!
-        target_done == True
+        self.get_logger().info(f'moved onto next phase ({self.state})')
       else:
+        target_done = True
         self.get_logger().info('now that movement has ended, will check base alignment again')
 
     # move to default marker holding pose
@@ -288,6 +289,7 @@ class PickupMarker(Node):
     # TODO: maybe figure out what to do if this fails lol... and what that return looks like
     self.get_logger().info(f'trajectory goal result: {trajectory_res}')
     #TODO: if it fails, return false
+    time.sleep(3)
     return True
   
   def to_marker_start(self, request):
@@ -298,9 +300,9 @@ class PickupMarker(Node):
     self.state = PickupSeq.DRAWSTART
     canvas_pt = PointStamped(point=Point(x=request.x, y=request.y, z=request.z))
     canvas_pt.header.frame_id = request.markerid
+    self.get_logger().info(f'point info received: {canvas_pt}')
     target = self.transform_to_base_frame(canvas_pt)
     self.get_logger().info(f'target point for wrist center: {target}')
-    self.get_logger
     self.get_logger().info('Solving Inverse Kinematics for goal point')
     q = self.get_q_soln(target)
 
@@ -319,6 +321,15 @@ class PickupMarker(Node):
     elif request.pose_name == 'setup_draw':
       self.get_logger().info('setting up to draw at requested shape location!')
       self.to_marker_start(request)
+    elif request.pose_name == 'backup':
+      trajectory_goal = FollowJointTrajectory.Goal()
+      trajectory_goal.trajectory.header.frame_id = 'base_link'
+      trajectory_goal.trajectory.joint_names = ['translate_mobile_base']
+      # create trajectory point
+      goal_point = JointTrajectoryPoint()
+      duration_goal = Duration(seconds=10).to_msg()
+      goal_point.time_from_start = duration_goal
+      goal_point.positions = [0.5] #TODO: figure out, maybe half a meter forward?
     else:
       self.get_logger().info('moving to default pose!')
       self.move_to_default_pose(request.pose_name)
@@ -335,6 +346,7 @@ def main():
     executor.spin()
   except KeyboardInterrupt:
     marker_pickup_node.get_logger().info('Keyboard interrupt... shutting down')
+
   marker_pickup_node.destroy_node()
   rclpy.shutdown()
 

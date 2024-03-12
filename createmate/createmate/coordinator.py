@@ -3,7 +3,6 @@ import time
 import createmate_interfaces.action
 from createmate_interfaces.msg import DrawShapes, Shape, ShapesProgression
 from createmate_interfaces.srv import Navigate, GoalPosition, DrawShape
-from createmate_interfaces.action import Sleepy
 from enum import Enum
 from rclpy.action import ActionServer, ActionClient, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -11,6 +10,7 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import Bool
 from std_srvs.srv import Trigger
+from sensor_msgs.msg import JointState
 from geometry_msgs.msg import Point
 
 '''
@@ -32,7 +32,8 @@ class CoreState(Enum):
 
 class Tool:
   NONE=''
-  TOOL1 = 'tool1'
+  # TOOL1 = 'target_object' #switch these to be aruco marker names
+  TOOL1 = 'unknown'
   TOOL2 = 'tool2'
 
 class CoordinatorActionServer(Node):
@@ -44,20 +45,27 @@ class CoordinatorActionServer(Node):
   def __init__(self):
     super().__init__('coordinator')
     self.get_logger().info('starting up coordinator node')
+
     # startup robot
-    self.state = CoreState.ACCEPTING_DRAW_REQS
-
-    self.tool_in_grip = Tool.TOOL1 #TODO: assumes starting off with marker in hand rn!
-
+    self.quick_test = False
+    if self.quick_test:
+      self.tool_in_grip = Tool.TOOL1
+      self.state = CoreState.ACCEPTING_DRAW_REQS
+    else:
+      self.tool_in_grip = Tool.NONE
+      self.state = CoreState.STARTUP
+    
+    
     # create a separate reentrant callback group so blocking within the shape handling (bc of waiting for actions), 
     # does not block other callbacks
     self.ui_exec_callback_group = ReentrantCallbackGroup()
 
     # home robot to start
     # borrow use of callback group since we are calling a service inside its callback
-    self.home_sub = self.create_subscription(Bool, '/is_homed', self.robot_home_check, 1, callback_group=self.ui_exec_callback_group)
+    if not self.quick_test:
+      self.home_sub = self.create_subscription(Bool, '/is_homed', self.robot_home_check, 1, callback_group=self.ui_exec_callback_group)
     # REMAINING FIELDS INITIALIZED IN RUN_CONTROLLER
-    self.quick_test = True
+    self.draw_setup_joint_names = ['wrist_extension', 'joint_lift']
     
   def robot_home_check(self, home_msg):
     '''
@@ -96,7 +104,7 @@ class CoordinatorActionServer(Node):
       goal callback function to accept/reject goal request
     '''
     if self.state == CoreState.ACCEPTING_DRAW_REQS:
-      self.get_logger().info('Accepting the following draw request from UI: {draw_req}')
+      self.get_logger().info(f'Accepting the following draw request from UI: {draw_reqs}')
       self.state = CoreState.DRAWING
       return GoalResponse.ACCEPT
     else:
@@ -107,23 +115,27 @@ class CoordinatorActionServer(Node):
     '''
      coor (geometry_msg/point) is the middle of the shape
     '''
+
     if self.quick_test:
       return
     # calc start coords
+    side_len = 0.15 #TODO hardcoded
+    diameter = 0.1 # hardcoded
     if name == 't':
-      side_len = 0.15 #TODO hardcoded
-      height = 0.15
       x = coor.x - (side_len / 2)
-      y = coor.y - (height / 2)
+      y = coor.y - (side_len / 2)
     elif name == 'c':
-        
-    else :
-
+      x = coor.x + diameter /2
+      y = coor.y
+    elif name == 's':
+      x = coor.x - side_len /2
+      y  = coor.y - side_len/2
+    self.get_logger().info('x{x}, y{y}')
     toShapeStartReq = GoalPosition.Request()
-    toShapeStartReq.markerid = 'target_object1'
+    toShapeStartReq.markerid = 'unknown' #TODO: ARUCO MARKER NAME FOR CANVAS
     toShapeStartReq.pose_name = 'setup_draw'
-    toShapeStartReq.x = x
-    toShapeStartReq.y = y
+    toShapeStartReq.x = x # robot y is moving the arm out
+    toShapeStartReq.y = -y # robot z is up and down, our y is going downward
     self.get_logger().info('attempting to line up marker for desired start')
     res = self.pickup_tool_client.call(toShapeStartReq)
     self.get_logger().info(f'marker at start point?!: {res}')
@@ -133,10 +145,11 @@ class CoordinatorActionServer(Node):
     if mode == 'position':
       self.get_logger().info('switching to position mode...')
       self.pos_mode_client.call(trigger_req)
-    elif mode == 'navigation':
-      self.nav_mode_client.call(trigger_req)
-      self.get_logger().info('switching to navigation mode....')
-    self.get_logger().info('done switching modes!')
+  #   # COMMENTED OUT BC WE ARE NO LONGER USING NAVIGATION FOR DEMO
+  #   # elif mode == 'navigation':
+  #   #   self.nav_mode_client.call(trigger_req)
+  #   #   self.get_logger().info('switching to navigation mode....')
+  #   # self.get_logger().info('done switching modes!')
 
   def get_correct_tool(self, req_tool):
     '''
@@ -145,15 +158,16 @@ class CoordinatorActionServer(Node):
     if self.quick_test:
       return
     if req_tool != self.tool_in_grip:
-      # navigate to the marker table
-      self.switch_modes('navigation')
-      navSrvReq = Navigate.Request()
-      navSrvReq.target_map_pose = 'face_marker_table'
-      res = self.nav_client.call(navSrvReq)
-      self.get_logger().info('result of createmate navigation service: {res}')
+      self.get_logger().info('picking up the correct tool')
+    #   # navigate to the marker table
+    #   # self.switch_modes('navigation')
+    #   # navSrvReq = Navigate.Request()
+    #   # navSrvReq.target_map_pose = 'face_marker_table'
+    #   # res = self.nav_client.call(navSrvReq)
+    #   # self.get_logger().info('result of createmate navigation service: {res}')
 
       # pickup the marker
-      self.switch_modes('position')
+      # self.switch_modes('position')
       pickupToolReq = GoalPosition.Request()
       pickupToolReq.pose_name = 'stow_marker'
       res = self.pickup_tool_client.call(pickupToolReq)
@@ -163,21 +177,21 @@ class CoordinatorActionServer(Node):
       pickupToolReq.markerid = req_tool
       pickupToolReq.pose_name = 'grab_tool'
       res = self.pickup_tool_client.call(pickupToolReq)
-      self.get_logger().info('result of createmate pickup tool service: {res}')
+      self.get_logger().info(f'result of createmate pickup tool service: {res}')
       self.tool_in_grip = req_tool
 
       # navigate to the canvas
-      self.switch_modes('navigation')
-      navSrvReq = Navigate.Request()
-      navSrvReq.target_map_pose = 'face_canvas'
-      res = self.nav_client.call(navSrvReq)
-      self.get_logger().info('result of createmate navigation service: {res}')
+      # self.switch_modes('navigation')
+      # navSrvReq = Navigate.Request()
+      # navSrvReq.target_map_pose = 'face_canvas'
+      # res = self.nav_client.call(navSrvReq)
+      # self.get_logger().info('result of createmate navigation service: {res}')
       
       # go to drawing position
-      self.switch_modes('position')
+      #self.switch_modes('position')
       drawReadyReq = GoalPosition.Request()
       drawReadyReq.pose_name = 'draw_ready' # moves the wrist towards the canvas
-      res = self.nav_client.call(drawReadyReq)
+      res = self.pickup_tool_client.call(drawReadyReq)
       self.get_logger().info('result of request to get in drawing pose: {res}')
       
   def execute_user_draw_shapes(self, goal_handle):
@@ -186,16 +200,15 @@ class CoordinatorActionServer(Node):
     '''
     # extract requested shape goals
     ds_goals = goal_handle.request.shape_goals.shapes #list of shape messages
-    self.get_logger().info('executing goal: {ds_goals}')
-    
-    # init feedback
+    #init feedback
     shapes_feedback = createmate_interfaces.action.DrawShapes.Feedback()
-    
+    shapes_feedback.shape_progress = ShapesProgression()
     # keep track of whether all shapes succeeded
     shape_failed = False
 
     # loop through requested shapes
     for i in range(len(ds_goals)): #DrawShapes message array of shapes
+      self.get_logger().info(f'on shape {i}')
       shapes_feedback.shape_progress.shape_num = i
       shapes_feedback.shape_progress.status = "setup"
       goal_handle.publish_feedback(shapes_feedback)
@@ -205,19 +218,21 @@ class CoordinatorActionServer(Node):
       #2 move to canvas start point
       shapes_feedback.shape_progress.status = "moving to canvas start point"
       goal_handle.publish_feedback(shapes_feedback)
-      shape_goal_msg = ds_goals[i]
       rebuilt_shape_goal_msg = Shape()
-      rebuilt_shape_goal_msg.shape = shape_goal_msg['name']
+      rebuilt_shape_goal_msg.shape = ds_goals[i].shape
       rebuilt_shape_goal_msg.start_location = Point()
-      rebuilt_shape_goal_msg.start_location.x = shape_goal_msg['start_location']['x']
-      rebuilt_shape_goal_msg.start_location.y = shape_goal_msg['start_location']['y']
+      rebuilt_shape_goal_msg.start_location.x = ds_goals[i].start_location.x
+      rebuilt_shape_goal_msg.start_location.y = ds_goals[i].start_location.y
+      req = DrawShape.Request()
+      req.shape = rebuilt_shape_goal_msg
+      self.get_logger().info(f'{rebuilt_shape_goal_msg}')
       self.to_shape_start(rebuilt_shape_goal_msg.shape, rebuilt_shape_goal_msg.start_location)
 
       #3 send drawing request 
       shapes_feedback.shape_progress.status = "init drawing"
       goal_handle.publish_feedback(shapes_feedback)
   
-      shape_result = self.robo_shape_action_client.send_goal(rebuilt_shape_goal_msg) #drawing node uses the Shape messages in the DrawShapes messages
+      shape_result = self.robo_shape_service.call(req) #drawing node uses the Shape messages in the DrawShapes messages
       
       shape_result = 'COMPLETE' #TODO uncomment
       if shape_result == "COMPLETE":
@@ -225,9 +240,13 @@ class CoordinatorActionServer(Node):
       else:
         shapes_feedback.shape_progress.status = "failed"
         shape_failed = True
+      # hardcoded move back
+      away_from_paper_req = GoalPosition.Request()
+      away_from_paper_req.pose_name = 'backup'
+      res = self.pickup_tool_client.call(away_from_paper_req)
       goal_handle.publish_feedback(shapes_feedback)
 
-    goal_handle.succeed()
+    # goal_handle.succeed()
     result = createmate_interfaces.action.DrawShapes.Result()
 
     # reply with results (false success if ANY shapes failed)
@@ -256,31 +275,30 @@ class CoordinatorActionServer(Node):
       callback_group = self.ui_exec_callback_group
     )
 
-    # action client to req marker switches
-    self.get_logger().info('setting up service clients')
+    # # action client to req marker switches
+    # self.get_logger().info('setting up service clients')
 
-    # pickup marker service
-    self.pickup_tool_client = self.create_client(GoalPosition, 'move_to_preset')
-    while not self.pickup_tool_client.wait_for_service(timeout_sec=2.0):
-      self.get_logger().info('pickup marker service not available, waiting again...')
+    # # pickup marker service
+    if not self.quick_test:
+      self.pickup_tool_client = self.create_client(GoalPosition, 'move_to_preset')
+      while not self.pickup_tool_client.wait_for_service(timeout_sec=2.0):
+        self.get_logger().info('pickup marker service not available, waiting again...')
 
-    # navigation to preset map pose service
-    # self.nav_client = self.create_client(Navigate, 'nav2_preset_map_pose')
-    # while not self.nav_client.wait_for_service(timeout_sec=2.0):
-    #   self.get_logger().info('createmate navigation service not available, waiting again...')
+    # # navigation to preset map pose service
+    # # self.nav_client = self.create_client(Navigate, 'nav2_preset_map_pose')
+    # # while not self.nav_client.wait_for_service(timeout_sec=2.0):
+    # #   self.get_logger().info('createmate navigation service not available, waiting again...')
 
-    #switch betweeen mode services
-    # self.pos_mode_client = self.create_client(Trigger, 'switch_to_position_mode')
-    # while not self.pos_mode_client.wait_for_service(timeout_sec=2.0):
-    #   self.get_logger().info('core position mode service not available, waiting again...')
+    # switch betweeen mode services
+    self.pos_mode_client = self.create_client(Trigger, 'switch_to_position_mode')
+    while not self.pos_mode_client.wait_for_service(timeout_sec=2.0):
+      self.get_logger().info('core position mode service not available, waiting again...')
 
-    # if not self.quick_test:
-    # self.nav_mode_client = self.create_client(Trigger, 'switch_to_navigation_mode')
-    # while not self.nav_mode_client.wait_for_service(timeout_sec=2.0):
-    #   self.get_logger().info('core navigation mode service not available, waiting again...')
-    
-    # TODO: create an action client to communicate w/ the drawing node
-    self.robo_shape_action_client = ActionClient(self, DrawShape, 'stretch_draw_shape')
+    # # if not self.quick_test:
+    # # self.nav_mode_client = self.create_client(Trigger, 'switch_to_navigation_mode')
+    # # while not self.nav_mode_client.wait_for_service(timeout_sec=2.0):
+    # #   self.get_logger().info('core navigation mode service not available, waiting again...')
+    self.robo_shape_service = self.create_client(DrawShape, 'draw_shape')
     self.get_logger().info('done setting up clients')
 
 def main():

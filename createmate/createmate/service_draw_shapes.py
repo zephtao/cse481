@@ -89,7 +89,7 @@ class DrawService(Node):
     
         # sample n points along circle
         t = np.linspace(0, 2*np.pi, n, endpoint=True)
-        x = (diameter / 2) * np.cos(t) + self.arm_pos + (diameter / 2)
+        x = (diameter / 2) * np.cos(t) + self.arm_pos #+ (diameter / 2)
         y = (diameter / 2) * np.sin(t) + self.lift_pos
         circle_mat = np.c_[x, y]
 
@@ -213,8 +213,13 @@ def main():
 
   draw_node = DrawService()
   executor.add_node(draw_node)
-  executor.spin()
 
+  try:
+    executor.spin()
+  except KeyboardInterrupt:
+    draw_node.get_logger().info('Keyboard interrupt... shutting down')
+  
+  draw_node.destroy_node()
   rclpy.shutdown()
 
 
